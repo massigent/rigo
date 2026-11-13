@@ -125,6 +125,49 @@ A review pass against real iA Writer and Typora builds fixed the following:
 
 ---
 
+## 🔧 What changed in 1.0.3
+
+A review pass backed by executable evidence (the real engine driven in jsdom, plus the compiled
+binary probed over HTTP). Full detail in `REVIEW-1.0.3.md`.
+
+**Visible bugs**
+- **Code blocks are code blocks again**: Live Preview used to detach code from the Markdown and put it
+  back as *source*, so the preview showed literal ``` backticks inside a `<p>` — no `<pre>`, no
+  highlighting, no working "Copy" button. The fence is now rendered to HTML when it is detached
+  (`<pre class="code-block"><code class="language-xx">`, escaped, unclosed fences tolerated), and
+  inline code gets its own `<code>`.
+- **An untitled document no longer writes a file behind your back**: the first keystroke on the welcome
+  text created `~/Documents/Untitled.md` (and later sessions overwrote it). Auto-save no longer invents
+  a path; the status stays `○ Unsaved` and `Ctrl+S` asks for a name.
+- **`Ctrl+Alt+T` (sound) works on macOS**: with Option held `e.key` is `†`, so the shortcut never fired;
+  it now uses `e.code`.
+
+**Security**
+- **`/api/asset` is confined to the document folder**: it served any image on disk (including `.svg`)
+  while claiming otherwise; now `pathWithin()` resolves symlinks before comparing.
+- **`/api/rename` can no longer delete arbitrary files**: `old_path` must be a Markdown document.
+- **DNS-rebinding guard fixed**: `http://127.0.0.1.evil.com` and `http://localhost.evil.com` passed the
+  prefix test; the host is now compared exactly.
+- **Token compared in constant time** (`subtle.ConstantTimeCompare`).
+
+**Data**
+- **Saving preserves file permissions** (every save used to turn a `0644`/`0640` into `0600`) and syncs
+  the directory entry too.
+- **"Save as" no longer overwrites silently**: the backend answers `409` and only replaces with
+  `overwrite: true`, which the UI sends after an explicit confirmation.
+- **The extension you type is no longer rewritten** (the bug Typora fixed in 1.13.7): unsupported
+  extensions get a `400` listing what is allowed, with one explicit question when the name really looks
+  like a file type.
+- **External change watchdog** (`/api/stat`, every 5 s — Typora 1.13.7): a clean buffer reloads
+  (`● Reloaded from disk`), a dirty one shows `⚠️ Changed on disk` and not a single typed line is
+  touched; a file opened at launch reads its `mtime` immediately, so the first auto-save no longer skips
+  the conflict check.
+
+**Engineering**
+- 6 new regression tests (19 total, `go test ./...` green, `go vet` clean).
+
+---
+
 ## 🗺️ Roadmap (gaps vs iA Writer / Typora)
 
 - Bundle KaTeX for real math typesetting (and Mermaid for diagrams).

@@ -134,6 +134,33 @@ Revisione condotta confrontando il codice con build reali di iA Writer e Typora:
 
 ---
 
+## 🔧 Novità della 1.0.3
+
+Revisione condotta sul codice con prove eseguibili (motore reale in jsdom + binario interrogato via HTTP).
+Dettaglio completo in `REVIEW-1.0.3.md`.
+
+**Bug visibili**
+- **I blocchi di codice ora sono blocchi di codice**: in Live Preview il codice veniva staccato dal Markdown, poi reimmesso come *sorgente*, quindi a schermo comparivano i backtick letterali (` ```js ` dentro un `<p>`) senza `<pre>`, senza evidenziazione e senza pulsante "Copy". Ora il recinto viene reso in HTML al momento dello stacco: `<pre class="code-block"><code class="language-xx">`, con contenuto escapato e recinti non chiusi tollerati. Anche il codice inline ha il suo `<code>`.
+- **Il documento senza titolo non scrive più file di nascosto**: la prima digitazione sul testo di benvenuto creava `~/Documenti/Documento.md` e le sessioni successive lo sovrascrivevano. Ora l'auto-salvataggio non inventa percorsi, lo stato resta `○ Non salvato` e `Ctrl+S` chiede il nome.
+- **`Ctrl+Alt+T` (suono) funziona anche su macOS**: con Option premuto `e.key` è `†`, la scorciatoia non scattava mai; ora usa `e.code`.
+
+**Sicurezza**
+- **`/api/asset` confinato alla cartella del documento**: serviva qualsiasi immagine del disco (anche `.svg`) pur dichiarando il contrario; ora usa `pathWithin()` con risoluzione dei symlink.
+- **`/api/rename` non cancella più file arbitrari**: `old_path` deve essere un documento Markdown.
+- **Difesa anti-DNS-rebinding corretta**: `http://127.0.0.1.evil.com` e `http://localhost.evil.com` passavano il controllo a prefisso; ora si confronta l'host esatto.
+- **Token confrontato a tempo costante** (`subtle.ConstantTimeCompare`).
+
+**Dati**
+- **Il salvataggio conserva i permessi del file** (prima ogni save trasformava un `0644`/`0640` in `0600`) e fa `fsync` anche sulla cartella.
+- **"Salva con nome" non sovrascrive più in silenzio**: il backend risponde `409` e sostituisce solo dopo conferma (`overwrite: true`).
+- **L'estensione scritta non viene più riscritta a forza** (il bug che Typora ha corretto in 1.13.7): estensioni non Markdown = `400` con l'elenco ammesso, con una domanda esplicita solo quando sembra davvero un tipo di file.
+- **Watchdog delle modifiche esterne** (`/api/stat`, ogni 5 s, il bug Typora 1.13.7): se il buffer è pulito si ricarica (`● Ricaricato dal disco`), se stai scrivendo mostra `⚠️ Cambiato su disco` senza toccare una riga; e un file aperto all'avvio legge subito il proprio `mtime`, quindi il primo auto-salvataggio non salta più il controllo di conflitto.
+
+**Ingegneria**
+- 6 nuovi test di regressione (19 in totale, `go test ./...` verde, `go vet` pulito).
+
+---
+
 ## 🗺️ Roadmap (gap rispetto a iA Writer / Typora)
 
 - Includere KaTeX per l'impaginazione reale delle formule (e Mermaid per i diagrammi).

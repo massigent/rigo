@@ -82,17 +82,34 @@ class LivePreviewEngine {
   }
 
   // Protects fenced/inline code before touching math or task markers.
+  //
+  // The code is turned into HTML *here*, not stashed as raw markdown: putting
+  // the original fence back after marked() printed literal ``` backticks in the
+  // preview (no <pre>, no syntax highlighting, no Copy button).
   extractCodeBlocks(text) {
     const blocks = [];
+    const stash = (html) => {
+      blocks.push(html);
+      return `\u0000CODE${blocks.length - 1}\u0000`;
+    };
+
     const protected_ = String(text)
-      .replace(/^([ \t]*)(`{3,}|~{3,})[\s\S]*?(?:^\1\2[ \t]*$|$)/gm, (m) => {
-        blocks.push(m);
-        return `\u0000CODE${blocks.length - 1}\u0000`;
-      })
-      .replace(/(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/g, (m) => {
-        blocks.push(m);
-        return `\u0000CODE${blocks.length - 1}\u0000`;
+      .replace(/^([ \t]*)(`{3,}|~{3,})([^\n]*)\n([\s\S]*?)(?:^\1\2[ \t]*$|$(?![\s\S]))/gm,
+        (_m, _indent, _fence, info, body) => {
+          const lang = String(info || "").trim().split(/\s+/)[0].replace(/[^\w+#.-]/g, "");
+          const cls = lang ? ` class="language-${lang}"` : "";
+          let text = String(body).replace(/\n$/, "");
+          if (_indent) {
+            const lead = _indent;
+            text = text.split("\n").map((l) => (l.startsWith(lead) ? l.slice(lead.length) : l)).join("\n");
+          }
+          return stash(`<pre class="code-block"><code${cls}>${escapeHtml(text)}</code></pre>`);
+        })
+      .replace(/(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/g, (_m, _fence, code) => {
+        const inner = String(code).replace(/^ ([\s\S]*) $/, "$1");
+        return stash(`<code>${escapeHtml(inner)}</code>`);
       });
+
     return { protected_, blocks };
   }
 

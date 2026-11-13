@@ -1,0 +1,1540 @@
+/* TypeCraft — Aesthetic Minimalist Markdown Engine */
+
+/* ------------------------------------------------------------- 1. Fonts */
+@font-face {
+  font-family: 'iA Writer Mono';
+  src: url('/static/fonts/iAWriterMono.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'iA Writer Duo';
+  src: url('/static/fonts/iAWriterDuo.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'iA Writer Quattro';
+  src: url('/static/fonts/iAWriterQuattro.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('/static/fonts/ebgaramond-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lora';
+  src: url('/static/fonts/lora-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ------------------------------------------------------------- 2. Color Themes */
+:root {
+  --line-height: 1.8;
+  --max-width: 760px;
+  --radius: 8px;
+  --font-size: 18px;
+  --transition-speed: 0.18s;
+}
+
+/* iA Clean (Light) */
+body.theme-ia-light {
+  --bg: #fcfcfc;
+  --fg: #1a1a1a;
+  --fg-secondary: #707070;
+  --accent: #007aff;
+  --accent-light: rgba(0, 122, 255, 0.12);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --hud-bg: rgba(252, 252, 252, 0.94);
+  --card-bg: #ffffff;
+  --code-bg: #f4f4f5;
+  --quote-bar: #007aff;
+  --table-border: #e2e2e6;
+  --table-stripe: #f8f8fa;
+  --dim-opacity: 0.30;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+/* Sepia Paper (Warm) */
+body.theme-sepia {
+  --bg: #f6f1e8;
+  --fg: #2c251e;
+  --fg-secondary: #7e7060;
+  --accent: #9a6026;
+  --accent-light: rgba(154, 96, 38, 0.12);
+  --border: rgba(60, 40, 20, 0.1);
+  --border-strong: rgba(60, 40, 20, 0.2);
+  --hud-bg: rgba(246, 241, 232, 0.94);
+  --card-bg: #ede6dc;
+  --code-bg: #eae3d7;
+  --quote-bar: #9a6026;
+  --table-border: #ded5c8;
+  --table-stripe: #f0eae0;
+  --dim-opacity: 0.28;
+  --shadow: 0 4px 20px rgba(44, 37, 30, 0.08);
+}
+
+/* Typora Night (Slate) */
+body.theme-typora-night {
+  --bg: #1e1e24;
+  --fg: #e2e2e6;
+  --fg-secondary: #8e8e98;
+  --accent: #61afef;
+  --accent-light: rgba(97, 175, 239, 0.15);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --hud-bg: rgba(30, 30, 36, 0.94);
+  --card-bg: #272730;
+  --code-bg: #282c34;
+  --quote-bar: #61afef;
+  --table-border: #3b3b46;
+  --table-stripe: #25252e;
+  --dim-opacity: 0.25;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* OLED Pure Black */
+body.theme-oled-black {
+  --bg: #000000;
+  --fg: #eeeeee;
+  --fg-secondary: #777777;
+  --accent: #00e5ff;
+  --accent-light: rgba(0, 229, 255, 0.15);
+  --border: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.26);
+  --hud-bg: rgba(0, 0, 0, 0.96);
+  --card-bg: #111111;
+  --code-bg: #141414;
+  --quote-bar: #00e5ff;
+  --table-border: #262626;
+  --table-stripe: #0a0a0a;
+  --dim-opacity: 0.22;
+  --shadow: 0 4px 28px rgba(0, 0, 0, 0.8);
+}
+
+/* ------------------------------------------------------------- 3. Font Families */
+body.font-ia-mono .editor-textarea,
+body.font-ia-mono .focus-backdrop,
+body.font-ia-mono #previewContent {
+  font-family: 'iA Writer Mono', Menlo, Monaco, Consolas, "Courier New", monospace;
+  letter-spacing: normal;
+}
+
+body.font-ia-duo .editor-textarea,
+body.font-ia-duo .focus-backdrop,
+body.font-ia-duo #previewContent {
+  font-family: 'iA Writer Duo', monospace;
+  letter-spacing: normal;
+}
+
+body.font-ia-quattro .editor-textarea,
+body.font-ia-quattro .focus-backdrop,
+body.font-ia-quattro #previewContent {
+  font-family: 'iA Writer Quattro', -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: normal;
+}
+
+body.font-garamond .editor-textarea,
+body.font-garamond .focus-backdrop,
+body.font-garamond #previewContent {
+  font-family: 'EB Garamond', Georgia, Cambria, serif;
+  font-size: 20px;
+}
+
+body.font-lora .editor-textarea,
+body.font-lora .focus-backdrop,
+body.font-lora #previewContent {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 19px;
+}
+
+body.font-system-sans .editor-textarea,
+body.font-system-sans .focus-backdrop,
+body.font-system-sans #previewContent {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ------------------------------------------------------------- 4. Reset & Layout */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+  user-select: none;
+}
+
+/* ------------------------------------------------------------- 5. HUD Top Bar */
+.zen-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: var(--hud-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 100;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Auto-hide HUD when typing */
+body.is-typing .zen-hud:not(:hover),
+body.is-typing .status-bar:not(:hover) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hud-left, .hud-right, .hud-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.hud-btn:hover {
+  background: var(--border);
+  border-color: var(--border-strong);
+}
+
+.hud-btn.active {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.icon-btn {
+  padding: 6px 8px;
+}
+
+.doc-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 6px;
+}
+
+.doc-title-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 3px 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.doc-title-btn:hover {
+  background: var(--border);
+  border-color: var(--border-strong);
+  color: var(--accent);
+}
+
+.doc-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: inherit;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-title-chevron {
+  font-size: 10px;
+  opacity: 0.6;
+  margin-left: 1px;
+}
+
+.save-status {
+  font-size: 11px;
+  color: var(--fg-secondary);
+}
+
+.save-status.saved {
+  color: #34c759;
+}
+
+.save-status.unsaved {
+  color: #ff9500;
+}
+
+.stats-pill {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-secondary);
+  background: var(--border);
+  padding: 4px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.stats-pill:hover {
+  color: var(--fg);
+  background: var(--border-strong);
+}
+
+.stat-sep {
+  opacity: 0.4;
+}
+
+.view-mode-group {
+  display: inline-flex;
+  background: var(--border);
+  padding: 2px;
+  border-radius: 6px;
+  gap: 2px;
+}
+
+.mode-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--fg-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mode-tab-btn.active {
+  background: var(--card-bg);
+  color: var(--fg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.hud-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* Dropdown Menu */
+.dropdown-wrapper {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  min-width: 200px;
+  padding: 6px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dropdown-menu.hidden {
+  display: none;
+}
+
+.dropdown-item {
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  padding: 8px 12px;
+  font-size: 13px;
+  text-align: left;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.dropdown-item:hover {
+  background: var(--border);
+}
+
+.dropdown-item.active {
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.dropdown-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.shortcut {
+  font-size: 11px;
+  color: var(--fg-secondary);
+  background: var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* ------------------------------------------------------------- 6. Workspace & Panes */
+.workspace-container {
+  position: absolute;
+  top: 48px;
+  bottom: 28px;
+  left: 0;
+  right: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.pane {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.pane.hidden {
+  display: none !important;
+}
+
+/* Split mode styling */
+body.mode-split .pane {
+  flex: 1 1 50%;
+  border-right: 1px solid var(--border);
+}
+
+.pane.raw-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Formatting Toolbar (PubCraft Style) */
+.formatting-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 14px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 20;
+  user-select: none;
+  overflow-x: auto;
+  white-space: nowrap;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Auto-dimmed while writing to protect creative focus (PubCraft / iA Writer style) */
+.formatting-toolbar.hud-dimmed {
+  opacity: 0.18;
+  pointer-events: none;
+}
+.formatting-toolbar:hover,
+.formatting-toolbar:focus-within {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* In Focus Dim Mode: turns into a floating pill at bottom center (PubCraft style) */
+body.focus-dim-active .formatting-toolbar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 30px;
+  border: 1px solid var(--border-strong);
+  background: var(--hud-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 5px 14px;
+  z-index: 100;
+}
+
+body.focus-dim-active .formatting-toolbar.hud-dimmed {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateX(-50%) translateY(12px) !important;
+}
+
+body.focus-dim-active .formatting-toolbar:hover,
+body.focus-dim-active .formatting-toolbar:focus-within {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: translateX(-50%) translateY(0) !important;
+}
+
+.tb-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg-secondary);
+  font-size: 13px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-weight: 500;
+  line-height: 1;
+  transition: all 0.12s ease;
+}
+
+.tb-btn:hover {
+  background: var(--border);
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
+
+.tb-btn:active {
+  background: var(--accent-light);
+  color: var(--accent);
+  transform: translateY(1px);
+}
+
+.tb-btn b {
+  font-weight: 700;
+}
+.tb-btn i {
+  font-style: italic;
+}
+.tb-btn u {
+  text-decoration: underline;
+}
+
+.tb-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* ------------------------------------------------------------- 7. Raw Editor & Typewriter */
+.editor-scroll-wrapper {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Scroll is handled directly on textarea with backdrop sync */
+}
+
+.editor-textarea,
+.focus-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: var(--max-width);
+  height: 100%;
+  margin: 0 auto;
+  padding: 40px 24px;
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  letter-spacing: normal !important;
+  font-variant-ligatures: none !important;
+  text-rendering: optimizeLegibility;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  tab-size: 4;
+  box-sizing: border-box;
+  border: none;
+  outline: none;
+}
+
+/* Typewriter centering vertical padding: applies symmetrically to BOTH layers */
+body.typewriter-active .editor-textarea,
+body.typewriter-active .focus-backdrop {
+  padding-top: 45vh !important;
+  padding-bottom: 45vh !important;
+}
+
+.editor-textarea {
+  background: transparent;
+  color: var(--fg);
+  resize: none;
+  caret-color: var(--accent);
+  z-index: 2;
+  overflow-y: auto;
+  overflow-x: hidden;
+  user-select: text;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.editor-textarea::-webkit-scrollbar {
+  width: 6px;
+}
+.editor-textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+.editor-textarea::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+
+.focus-backdrop {
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+  display: none;
+  overflow: hidden;
+  color: var(--fg);
+  scrollbar-width: none;
+}
+.focus-backdrop::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Focus Dimming Active State */
+body.focus-dim-active .focus-backdrop {
+  display: block;
+}
+
+body.focus-dim-active .editor-textarea {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  caret-color: var(--accent) !important;
+}
+
+body.focus-dim-active .editor-textarea::selection {
+  background: var(--accent-light) !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.focus-dimmed {
+  opacity: var(--dim-opacity);
+  transition: opacity 0.15s ease;
+  color: inherit;
+}
+
+/* Paragraph Focus Mode: make all other paragraphs fade out virtually completely (iA Writer laser focus) */
+body.focus-mode-paragraph .focus-dimmed,
+body.focus-mode-paragraph .focus-dimmed-paragraph {
+  opacity: 0.04 !important;
+  transition: opacity 0.15s ease;
+  filter: blur(0.2px);
+}
+
+/* Sentence Focus Mode: dimmed text stays gently visible */
+body.focus-mode-sentence .focus-dimmed {
+  opacity: var(--dim-opacity);
+  transition: opacity 0.15s ease;
+}
+
+.focus-current {
+  opacity: 1;
+  /* Same weight as the dimmed text: a heavier weight changes glyph widths and
+     made the visible line drift away from the real caret. */
+  font-weight: inherit;
+  transition: opacity 0.12s ease;
+  color: inherit;
+}
+
+/* Caret Mirror for calculating offset */
+#taCaretMirror {
+  position: absolute;
+  top: -99999px;
+  left: -99999px;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ------------------------------------------------------------- 8. Live Preview (Typora Style) */
+.preview-scroll-wrapper {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 40px 24px;
+}
+
+body.typewriter-active .preview-scroll-wrapper {
+  padding-top: 45vh !important;
+  padding-bottom: 45vh !important;
+}
+
+.preview-content {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  user-select: text;
+}
+
+/* Markdown elements styling */
+.preview-content h1,
+.preview-content h2,
+.preview-content h3,
+.preview-content h4,
+.preview-content h5,
+.preview-content h6 {
+  color: var(--fg);
+  margin-top: 1.6em;
+  margin-bottom: 0.6em;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.preview-content h1 {
+  font-size: 2.2em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
+}
+
+.preview-content h2 {
+  font-size: 1.6em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.2em;
+}
+
+.preview-content h3 { font-size: 1.3em; }
+.preview-content h4 { font-size: 1.1em; }
+
+.preview-content p {
+  margin-bottom: 1.2em;
+}
+
+.preview-content a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+
+.preview-content a:hover {
+  border-bottom-style: solid;
+}
+
+.preview-content blockquote {
+  border-left: 3px solid var(--quote-bar);
+  margin: 1.2em 0;
+  padding: 0.4em 0 0.4em 1.2em;
+  color: var(--fg-secondary);
+  font-style: italic;
+  background: var(--accent-light);
+  border-radius: 0 4px 4px 0;
+}
+
+.preview-content ul,
+.preview-content ol {
+  margin-bottom: 1.2em;
+  padding-left: 2em;
+}
+
+.preview-content li {
+  margin-bottom: 0.3em;
+}
+
+/* Interactive Task Checkboxes */
+.preview-content input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 17px;
+  height: 17px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+  margin-right: 8px;
+  vertical-align: -3px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.preview-content input[type="checkbox"]:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  /* A real checkmark: ::after never renders on a replaced <input> element, so
+     the old rule was invisible in Chrome. */
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5l3 3 6-6'/%3E%3C/svg%3E");
+  background-size: 12px 12px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Tables (Typora style) */
+.preview-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.4em 0;
+  border: 1px solid var(--table-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.preview-content th,
+.preview-content td {
+  padding: 10px 14px;
+  border: 1px solid var(--table-border);
+  text-align: left;
+}
+
+.preview-content th {
+  background: var(--table-stripe);
+  font-weight: 600;
+}
+
+.preview-content tr:nth-child(even) {
+  background: var(--table-stripe);
+}
+
+/* Code Blocks */
+.preview-content code {
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'iA Writer Mono', monospace;
+  font-size: 0.9em;
+}
+
+.preview-content pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin: 1.4em 0;
+  overflow-x: auto;
+  position: relative;
+}
+
+.preview-content pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.preview-content hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+  margin: 2em 0;
+}
+
+.preview-content img {
+  max-width: 100%;
+  border-radius: var(--radius);
+  margin: 1.2em 0;
+}
+
+.preview-content img.img-missing {
+  display: inline-block;
+  min-width: 120px;
+  min-height: 32px;
+  border: 1px dashed var(--border-strong);
+  background: var(--table-stripe);
+}
+
+.preview-content input.task-checkbox {
+  cursor: pointer;
+}
+
+/* Math: no KaTeX is bundled, so formulas are shown as styled TeX source
+   instead of pretending to be rendered. */
+.math-tex {
+  font-family: 'iA Writer Mono', 'Cambria Math', serif;
+  font-style: italic;
+  font-size: 0.97em;
+  letter-spacing: 0.01em;
+}
+
+.math-inline {
+  white-space: nowrap;
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--table-stripe);
+}
+
+.math-block {
+  display: block;
+  text-align: center;
+  margin: 1.4em 0;
+  padding: 12px 8px;
+  background: var(--table-stripe);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+/* Copy button for fenced code blocks (styles belong here, not inline in JS). */
+.btn-copy-code {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 11px;
+  padding: 2px 8px;
+  background: var(--border);
+  color: var(--fg-secondary);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.preview-content pre:hover .btn-copy-code,
+.btn-copy-code:focus {
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------- 9. Slide-out Drawer */
+.side-drawer {
+  position: fixed;
+  top: 48px;
+  bottom: 28px;
+  left: 0;
+  width: 320px;
+  background: var(--card-bg);
+  border-right: 1px solid var(--border);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.05);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.side-drawer.collapsed {
+  transform: translateX(-100%);
+}
+
+.drawer-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.drawer-tab {
+  background: transparent;
+  border: none;
+  color: var(--fg-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.drawer-tab.active {
+  background: var(--border);
+  color: var(--fg);
+}
+
+.drawer-close {
+  background: transparent;
+  border: none;
+  color: var(--fg-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+}
+
+.drawer-panel {
+  display: none;
+}
+
+.drawer-panel.active {
+  display: block;
+}
+
+/* Outline tree */
+.outline-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.outline-item {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 4px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outline-item:hover {
+  background: var(--border);
+  color: var(--accent);
+}
+
+.outline-item.level-1 { font-weight: 600; padding-left: 8px; }
+.outline-item.level-2 { padding-left: 20px; font-size: 12.5px; }
+.outline-item.level-3 { padding-left: 32px; font-size: 12px; color: var(--fg-secondary); }
+.outline-item.level-4 { padding-left: 44px; font-size: 11.5px; color: var(--fg-secondary); }
+
+.empty-outline {
+  text-align: center;
+  color: var(--fg-secondary);
+  font-size: 13px;
+  padding: 30px 10px;
+}
+
+/* Workspace Tree & Recents */
+.workspace-root-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--fg-secondary);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.file-tree, .recents-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.file-node {
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg);
+}
+
+.file-node:hover {
+  background: var(--border);
+}
+
+.file-node.active {
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------- 10. Status Bar */
+.status-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: var(--hud-bg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 11px;
+  color: var(--fg-secondary);
+  z-index: 100;
+  transition: opacity 0.3s ease;
+}
+
+.status-left, .status-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.file-path-indicator {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- 11. Modals */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-backdrop.hidden {
+  display: none !important;
+}
+
+.modal-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: 90%;
+  max-width: 480px;
+  padding: 24px;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--fg);
+}
+
+.modal-desc {
+  font-size: 13px;
+  color: var(--fg-secondary);
+  margin-bottom: 16px;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  color: var(--fg);
+  margin-bottom: 20px;
+  outline: none;
+}
+
+.modal-input:focus {
+  border-color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+}
+
+.modal-btn.secondary {
+  background: var(--border);
+  color: var(--fg);
+}
+
+.modal-btn.primary {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+/* Detailed Stats Grid */
+.stats-modal-card {
+  max-width: 600px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-box {
+  background: var(--border);
+  padding: 14px 10px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--fg-secondary);
+}
+
+/* ------------------------------------------------------------- 11.5 macOS / PubCraft File Browser Modal */
+.fs-modal-card {
+  width: 680px;
+  max-width: 94vw;
+  height: 520px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 12px;
+}
+
+.fs-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fs-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--fg-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.fs-close-btn:hover {
+  color: var(--fg);
+  background: var(--border);
+}
+
+.fs-name-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fs-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-secondary);
+  white-space: nowrap;
+}
+
+.fs-name-input {
+  flex: 1;
+  margin-bottom: 0 !important;
+}
+
+.fs-quick-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  background: var(--border);
+  border-radius: 6px;
+}
+
+.fs-quick-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--fg-secondary);
+  margin-right: 4px;
+}
+
+.fs-quick-btn {
+  background: var(--card-bg);
+  border: 1px solid var(--border-strong);
+  color: var(--fg);
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fs-quick-btn:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.fs-nav-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fs-nav-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.fs-breadcrumbs {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--fg-secondary);
+  padding: 4px 8px;
+  background: var(--border);
+  border-radius: 4px;
+  min-height: 28px;
+}
+
+.fs-crumb-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.fs-crumb-btn:hover {
+  text-decoration: underline;
+}
+
+.fs-crumb-sep {
+  opacity: 0.4;
+}
+
+.fs-filter-input {
+  width: 140px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  color: var(--fg);
+  outline: none;
+}
+
+.fs-list-container {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.fs-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+}
+
+.fs-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  user-select: none;
+  transition: background 0.1s ease;
+}
+
+.fs-item:hover {
+  background: var(--border);
+}
+
+.fs-item.selected {
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.fs-item.is-file {
+  color: var(--fg-secondary);
+}
+
+.fs-item-icon {
+  font-size: 14px;
+}
+
+.fs-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fs-item-size {
+  font-size: 11px;
+  color: var(--fg-secondary);
+  opacity: 0.7;
+}
+
+.fs-empty-msg {
+  padding: 24px;
+  text-align: center;
+  color: var(--fg-secondary);
+  font-style: italic;
+  font-size: 13px;
+}
+
+.fs-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.fs-destination-preview {
+  font-size: 12px;
+  color: var(--fg-secondary);
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fs-actions-right {
+  display: flex;
+  gap: 8px;
+}
+
+/* Table Insert Modal */
+.table-modal-card {
+  max-width: 360px;
+}
+
+.table-input-grid {
+  display: flex;
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.table-input-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.table-input-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-secondary);
+}
+
+.table-input-group input {
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  color: var(--fg);
+  font-size: 14px;
+  outline: none;
+}
+
+.table-input-group input:focus {
+  border-color: var(--accent);
+}
+
+/* ------------------------------------------------------------- 12. Print Styles */
+@media print {
+  .zen-hud, .status-bar, .side-drawer, .modal-backdrop, .btn-copy-code, .drawer-overlay {
+    display: none !important;
+  }
+  .workspace-container {
+    position: static;
+    display: block;
+    height: auto;
+  }
+  .raw-pane {
+    display: none !important;
+  }
+  /* Two classes so this beats .pane.hidden (both !important, later wins).
+     Printing from Focus/raw mode used to produce a blank page. */
+  .pane.preview-pane,
+  body.printing .pane.preview-pane {
+    display: block !important;
+    border: none !important;
+  }
+  .preview-pane {
+    padding: 0 !important;
+    height: auto !important;
+  }
+  .preview-scroll-wrapper {
+    padding: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .preview-content {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .preview-content pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TypeCraft — Minimalist Markdown Editor</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✍️</text></svg>">
+</head>
+<body class="theme-ia-light font-ia-mono mode-raw">
+
+  <!-- HUD Top Bar (Auto-hides during typing) -->
+  <header id="zenHud" class="zen-hud">
+    <div class="hud-left">
+      <button id="btnToggleDrawer" class="hud-btn icon-btn" title="Outline & File (Ctrl+Shift+O)" aria-label="Toggle Navigation">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <div class="doc-info">
+        <button id="docTitleBtn" class="doc-title-btn" title="Clicca per rinominare o cambiare cartella (Salva con nome)">
+          <span id="docTitle" class="doc-title">Senza titolo.md</span>
+          <span class="doc-title-chevron">▾</span>
+        </button>
+        <span id="saveStatus" class="save-status saved" title="Stato salvataggio">● Salvato</span>
+      </div>
+    </div>
+
+    <div class="hud-center">
+      <div id="statsPill" class="stats-pill" title="Writing Statistics (Click for more)">
+        <span id="statWords">0 parole</span>
+        <span class="stat-sep">•</span>
+        <span id="statReadTime">1 min lettura</span>
+      </div>
+    </div>
+
+    <div class="hud-right">
+      <!-- Editor Mode: Raw / Hybrid Live / Split -->
+      <div class="view-mode-group" role="group" aria-label="Editor View Mode">
+        <button id="btnModeRaw" class="mode-tab-btn active" title="Focus Raw (iA Writer style)">Focus</button>
+        <button id="btnModeLive" class="mode-tab-btn" title="Live Preview (Typora style)">Live</button>
+        <button id="btnModeSplit" class="mode-tab-btn" title="Split Dual Mode">Dual</button>
+      </div>
+
+      <div class="hud-divider"></div>
+
+      <!-- Focus Dimming Toggle (Off / Sentence / Paragraph) -->
+      <button id="btnFocusDim" class="hud-btn" title="Cycle Focus Mode: Off / Sentence / Paragraph (Ctrl+D)">
+        <span class="btn-icon">🎯</span>
+        <span id="focusDimLabel">Focus: Off</span>
+      </button>
+
+      <!-- Typewriter Mode (Center Active Line) -->
+      <button id="btnTypewriter" class="hud-btn" title="Toggle Typewriter Scrolling (Ctrl+T)">
+        <span class="btn-icon">⌨️</span>
+        <span id="typewriterLabel">Typewriter</span>
+      </button>
+
+      <!-- Typewriter Mechanical Audio Click -->
+      <button id="btnAudioToggle" class="hud-btn icon-btn" title="Toggle Typewriter Click Sound (Ctrl+Alt+T)">
+        <svg id="audioIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+      </button>
+
+      <!-- Font Selector -->
+      <div class="dropdown-wrapper">
+        <button id="btnFontMenu" class="hud-btn icon-btn" title="Font selection">
+          <span id="fontCurrentLabel">Mono</span>
+        </button>
+        <div id="fontMenu" class="dropdown-menu hidden">
+          <button data-font="ia-mono" class="dropdown-item active">⌨️ iA Writer Mono</button>
+          <button data-font="ia-duo" class="dropdown-item">🔤 iA Writer Duo</button>
+          <button data-font="ia-quattro" class="dropdown-item">✨ iA Writer Quattro</button>
+          <button data-font="garamond" class="dropdown-item">📖 E.B. Garamond Serif</button>
+          <button data-font="lora" class="dropdown-item">📜 Lora Editorial</button>
+          <button data-font="system-sans" class="dropdown-item">🏛️ Clean Sans</button>
+        </div>
+      </div>
+
+      <!-- Theme Selector -->
+      <div class="dropdown-wrapper">
+        <button id="btnThemeMenu" class="hud-btn icon-btn" title="Theme (Light / Sepia / Night / OLED)">
+          <span id="themeCurrentIcon">☀️</span>
+        </button>
+        <div id="themeMenu" class="dropdown-menu hidden">
+          <button data-theme="ia-light" class="dropdown-item active">☀️ iA Clean (Light)</button>
+          <button data-theme="sepia" class="dropdown-item">📜 Sepia Paper (Warm)</button>
+          <button data-theme="typora-night" class="dropdown-item">🌙 Typora Night (Slate)</button>
+          <button data-theme="oled-black" class="dropdown-item">⬛ OLED Pure Black</button>
+        </div>
+      </div>
+
+      <!-- Actions Menu (New, Open, Save, Export) -->
+      <div class="dropdown-wrapper">
+        <button id="btnActionsMenu" class="hud-btn icon-btn" title="File Actions">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="1"></circle>
+            <circle cx="12" cy="5" r="1"></circle>
+            <circle cx="12" cy="19" r="1"></circle>
+          </svg>
+        </button>
+        <div id="actionsMenu" class="dropdown-menu dropdown-right hidden">
+          <button id="actionNew" class="dropdown-item">📄 New Document <span class="shortcut">Ctrl+N</span></button>
+          <button id="actionOpen" class="dropdown-item">📂 Apri File... <span class="shortcut">Ctrl+O</span></button>
+          <button id="actionSave" class="dropdown-item">💾 Salva <span class="shortcut">Ctrl+S</span></button>
+          <button id="actionSaveAs" class="dropdown-item">📑 Salva con nome... <span class="shortcut">Ctrl+Shift+S</span></button>
+          <div class="dropdown-sep"></div>
+          <button id="actionExportHtml" class="dropdown-item">🌐 Export Standalone HTML</button>
+          <button id="actionPrint" class="dropdown-item">🖨 Print / Save as PDF <span class="shortcut">Ctrl+P</span></button>
+          <div class="dropdown-sep"></div>
+          <button id="actionFullscreen" class="dropdown-item">⛶ Fullscreen Zen <span class="shortcut">F11</span></button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Slide-Out Navigation Drawer (Outline & Files) -->
+  <aside id="sideDrawer" class="side-drawer collapsed">
+    <div class="drawer-header">
+      <div class="drawer-tabs">
+        <button id="tabOutline" class="drawer-tab active">Outline (TOC)</button>
+        <button id="tabFiles" class="drawer-tab">Workspace</button>
+        <button id="tabRecents" class="drawer-tab">Recents</button>
+      </div>
+      <button id="btnCloseDrawer" class="drawer-close" title="Close Drawer">✕</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Outline TOC Tab -->
+      <div id="panelOutline" class="drawer-panel active">
+        <div id="outlineList" class="outline-tree">
+          <div class="empty-outline">Nessun titolo trovato nel documento.<br><small>Usa # Titolo 1 o ## Titolo 2</small></div>
+        </div>
+      </div>
+
+      <!-- Workspace Files Tab -->
+      <div id="panelFiles" class="drawer-panel">
+        <div id="workspaceRoot" class="workspace-root-label">Workspace</div>
+        <div id="fileTree" class="file-tree"></div>
+      </div>
+
+      <!-- Recents Tab -->
+      <div id="panelRecents" class="drawer-panel">
+        <ul id="recentsList" class="recents-list"></ul>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Backdrop for drawer on mobile/compact -->
+  <div id="drawerOverlay" class="drawer-overlay hidden"></div>
+
+  <!-- Main Writing Workspace -->
+  <main id="workspace" class="workspace-container">
+    
+    <!-- Raw / Typewriter Writing Pane -->
+    <section id="rawPane" class="pane raw-pane">
+      <!-- Formatting Toolbar (PubCraft Style) -->
+      <div id="formattingToolbar" class="formatting-toolbar" role="toolbar" aria-label="Strumenti di formattazione">
+        <button type="button" class="tb-btn" id="tbBold" title="Grassetto (Ctrl+B)" aria-label="Grassetto"><b>B</b></button>
+        <button type="button" class="tb-btn" id="tbItalic" title="Corsivo (Ctrl+I)" aria-label="Corsivo"><i>I</i></button>
+        <button type="button" class="tb-btn" id="tbUnderline" title="Sottolineato (Ctrl+U)" aria-label="Sottolineato"><u>U</u></button>
+        <button type="button" class="tb-btn" id="tbCenter" title="Centra testo (<center>)" aria-label="Centra">≡</button>
+        <span class="tb-sep"></span>
+        <button type="button" class="tb-btn" id="tbH1" title="Titolo H1 (#)" aria-label="Titolo H1">H1</button>
+        <button type="button" class="tb-btn" id="tbH2" title="Titolo H2 (##)" aria-label="Titolo H2">H2</button>
+        <button type="button" class="tb-btn" id="tbH3" title="Titolo H3 (###)" aria-label="Titolo H3">H3</button>
+        <span class="tb-sep"></span>
+        <button type="button" class="tb-btn" id="tbQuote" title="Citazione (>)" aria-label="Citazione">”</button>
+        <button type="button" class="tb-btn" id="tbUl" title="Elenco puntato (-)" aria-label="Elenco puntato">•</button>
+        <button type="button" class="tb-btn" id="tbOl" title="Elenco numerato (1.)" aria-label="Elenco numerato">1.</button>
+        <button type="button" class="tb-btn" id="tbTask" title="Elenco attività (- [ ])" aria-label="Attività">☑</button>
+        <span class="tb-sep"></span>
+        <button type="button" class="tb-btn" id="tbTable" title="Inserisci tabella" aria-label="Tabella">⊞</button>
+        <button type="button" class="tb-btn" id="tbLink" title="Inserisci link (Ctrl+K)" aria-label="Link">🔗</button>
+      </div>
+
+      <div class="editor-scroll-wrapper" id="editorScrollWrapper">
+        <!-- Focus dimming backdrop layer (synchronized exact mirror) -->
+        <div id="focusBackdrop" class="focus-backdrop" aria-hidden="true"></div>
+        <!-- Primary editing textarea -->
+        <textarea id="editor" class="editor-textarea" spellcheck="false" placeholder="Inizia a scrivere il tuo pensiero... (Usa Markdown puro per formattare)"></textarea>
+      </div>
+    </section>
+
+    <!-- Live Preview Pane (Typora style inline rendered preview) -->
+    <section id="previewPane" class="pane preview-pane hidden">
+      <div class="preview-scroll-wrapper" id="previewScrollWrapper">
+        <article id="previewContent" class="preview-content markdown-body"></article>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Minimalist Bottom Status Bar (Auto-hides) -->
+  <footer id="statusBar" class="status-bar">
+    <div class="status-left">
+      <span id="statusCursorPos">Ln 1, Col 1</span>
+      <span class="status-sep">•</span>
+      <span id="statusChars">0 caratteri</span>
+      <span class="status-sep">•</span>
+      <span id="statusSentences">0 frasi</span>
+      <span class="status-sep">•</span>
+      <span id="statusParagraphs">0 paragrafi</span>
+    </div>
+    <div class="status-right">
+      <span id="statusFocusIndicator">Focus: Spento</span>
+      <span class="status-sep">•</span>
+      <span id="statusTypewriterIndicator">Typewriter: Attivo</span>
+      <span class="status-sep">•</span>
+      <span id="statusFilePath" class="file-path-indicator">Senza titolo</span>
+    </div>
+  </footer>
+
+  <!-- macOS / PubCraft Style File Browser & Save As Modal -->
+  <div id="fsModal" class="modal-backdrop hidden">
+    <div class="modal-card fs-modal-card">
+      <div class="fs-modal-header">
+        <h3 id="fsModalTitle" class="modal-title">Salva Documento con Nome</h3>
+        <button id="btnFsClose" class="fs-close-btn" title="Chiudi (Esc)">✕</button>
+      </div>
+
+      <!-- File Name Input (for Save As / Rename) -->
+      <div id="fsFileNameSection" class="fs-name-section">
+        <label for="fsFileNameInput" class="fs-label">Nome file:</label>
+        <input type="text" id="fsFileNameInput" class="modal-input fs-name-input" placeholder="Documento.md" spellcheck="false">
+      </div>
+
+      <!-- Quick Locations Bar (Mac Finder style) -->
+      <div class="fs-quick-bar">
+        <span class="fs-quick-label">Posizioni:</span>
+        <button type="button" class="fs-quick-btn" data-target="workspace" title="Cartella del Documento / Workspace">📁 Workspace</button>
+        <button type="button" class="fs-quick-btn" data-target="documents" title="Documenti">📄 Documenti</button>
+        <button type="button" class="fs-quick-btn" data-target="desktop" title="Scrivania">🖥️ Scrivania</button>
+        <button type="button" class="fs-quick-btn" data-target="downloads" title="Download">📥 Download</button>
+        <button type="button" class="fs-quick-btn" data-target="home" title="Cartella Iniziale Utente">🏠 Home</button>
+      </div>
+
+      <!-- Breadcrumbs & Navigation Bar -->
+      <div class="fs-nav-toolbar">
+        <div class="fs-nav-buttons">
+          <button id="btnFsUp" class="hud-btn" title="Cartella superiore">⬆️ Su</button>
+          <button id="btnFsNewFolder" class="hud-btn" title="Crea nuova cartella">＋ Nuova cartella</button>
+        </div>
+        <div class="fs-breadcrumbs" id="fsBreadcrumbs"></div>
+        <input type="text" id="fsFilterInput" class="fs-filter-input" placeholder="Filtra cartelle..." spellcheck="false">
+      </div>
+
+      <!-- Interactive Directory & File List -->
+      <div class="fs-list-container">
+        <ul id="fsList" class="fs-list"></ul>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="modal-actions fs-modal-actions">
+        <div class="fs-destination-preview" id="fsSelectedPath" title="Destinazione"></div>
+        <div class="fs-actions-right">
+          <button id="btnFsCancel" class="modal-btn secondary">Annulla</button>
+          <button id="btnFsConfirm" class="modal-btn primary">Salva</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Dialog (For Open/Save File paths or info) -->
+  <div id="appModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <h3 id="modalTitle" class="modal-title">Apri File</h3>
+      <p id="modalDescription" class="modal-desc">Inserisci il percorso assoluto del file Markdown:</p>
+      <input type="text" id="modalInput" class="modal-input" placeholder="/percorso/del/tuo/documento.md">
+      <div class="modal-actions">
+        <button id="modalBtnCancel" class="modal-btn secondary">Annulla</button>
+        <button id="modalBtnConfirm" class="modal-btn primary">Conferma</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detailed Statistics Modal -->
+  <div id="statsModal" class="modal-backdrop hidden">
+    <div class="modal-card stats-modal-card">
+      <h3 class="modal-title">Statistiche Dettagliate del Documento</h3>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-number" id="boxWords">0</div>
+          <div class="stat-label">Parole</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="boxChars">0</div>
+          <div class="stat-label">Caratteri (spazi incl.)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="boxCharsNoSpaces">0</div>
+          <div class="stat-label">Caratteri (senza spazi)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="boxSentences">0</div>
+          <div class="stat-label">Frasi</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="boxParagraphs">0</div>
+          <div class="stat-label">Paragrafi</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="boxReadTime">0 min</div>
+          <div class="stat-label">Tempo di Lettura (200 wpm)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="boxSpeakingTime">0 min</div>
+          <div class="stat-label">Tempo di Eloquio (130 wpm)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="boxAvgWordLen">0</div>
+          <div class="stat-label">Media Caratteri / Parola</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="statsModalClose" class="modal-btn primary">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table Insert Modal -->
+  <div id="tableModal" class="modal-backdrop hidden">
+    <div class="modal-card table-modal-card">
+      <h3 class="modal-title">Inserisci Tabella</h3>
+      <div class="table-input-grid">
+        <div class="table-input-group">
+          <label for="tableColsInput" class="fs-label">Colonne:</label>
+          <input type="number" id="tableColsInput" class="modal-input" min="1" max="10" value="3">
+        </div>
+        <div class="table-input-group">
+          <label for="tableRowsInput" class="fs-label">Righe:</label>
+          <input type="number" id="tableRowsInput" class="modal-input" min="1" max="20" value="3">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btnTableCancel" class="modal-btn secondary">Annulla</button>
+        <button id="btnTableInsert" class="modal-btn primary">Inserisci</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Modules -->
+  <script src="/static/js/marked.min.js"></script>
+  <script src="/static/js/sanitize.js"></script>
+  <script src="/static/js/audio.js"></script>
+  <script src="/static/js/typewriter.js"></script>
+  <script src="/static/js/focusdim.js"></script>
+  <script src="/static/js/livepreview.js"></script>
+  <script src="/static/js/outline.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

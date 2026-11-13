@@ -1,0 +1,22 @@
+# Binaries and build artifacts
+typecraft
+typecraft-*
+*.exe
+*.AppImage
+dist/
+build/
+TypeCraft.AppDir/usr/bin/*
+
+# OS and Editor files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

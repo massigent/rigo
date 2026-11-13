@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=TypeCraft
+Comment=Minimalist Distraction-Free Markdown Editor (iA Writer & Typora Hybrid)
+Exec=typecraft %F
+Icon=typecraft
+Terminal=false
+Type=Application
+Categories=Office;WordProcessor;TextEditor;Utility;
+MimeType=text/markdown;text/plain;text/x-markdown;
+Keywords=markdown;editor;typewriter;focus;typora;iawriter;
+StartupWMClass=TypeCraft

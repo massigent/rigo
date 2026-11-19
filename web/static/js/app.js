@@ -96,6 +96,9 @@
     previewTimer: null,
     appToken: "",
     eventSource: null,
+    saving: false,
+    watchTimer: null,
+    remoteChanged: false,
   };
 
   // Basename that works with POSIX and Windows separators (split("/") broke
@@ -182,8 +185,22 @@
     syncToggleUI();
     subscribeEvents();
     updateAll();
+    // A file opened at launch has no known mod time yet: without this the first
+    // autosave skipped the conflict check and overwrote changes made elsewhere.
+    await refreshModTime();
+    startExternalWatch();
     window.typewriter.centerCaret(true);
     editor.focus();
+  }
+
+  async function refreshModTime() {
+    if (!state.currentPath) return;
+    try {
+      const res = await fetch(apiUrl("/api/stat?path=" + encodeURIComponent(state.currentPath)));
+      if (!res.ok) return;
+      const stat = await res.json();
+      if (stat.mod_time) state.currentModTime = stat.mod_time;
+    } catch (_) {}
   }
 
   function dirOf(p) {
@@ -361,17 +378,17 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
       window.typewriter.centerCaret(false);
       window.focusDim.render();
 
-      // Trigger debounced auto-save every time the user writes
+      clearTimeout(state.saveTimer);
       if (!state.currentPath) {
-        const defDir = state.defaultDir || "";
-        state.currentPath = defDir ? defDir.replace(/[\\/]+$/, "") + "/Documento.md" : "Documento.md";
-        updateDocTitle();
+        // A buffer that has never been given a name must stay nameless: the old
+        // code invented "<documenti>/Documento.md" here, so the first keystroke
+        // on the welcome screen silently wrote a file to disk and every later
+        // session overwrote it. Autosave waits for a real path; Ctrl+S asks.
+        setSaveStatus("○ Non salvato", "unsaved");
+        return;
       }
 
-      saveStatus.textContent = "● Salvataggio...";
-      saveStatus.className = "save-status saving";
-
-      clearTimeout(state.saveTimer);
+      setSaveStatus("● Salvataggio...", "saving");
       state.saveTimer = setTimeout(() => saveFile(true), 600);
     });
 
@@ -540,7 +557,9 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
       updateTypewriterUI(active);
       return;
     }
-    if (ctrl && e.altKey && e.key.toLowerCase() === "t") {
+    if (ctrl && e.altKey && (e.code === "KeyT" || e.key.toLowerCase() === "t")) {
+      // e.key is "†" on macOS with Option held: the documented Ctrl+Alt+T sound
+      // toggle never fired there. e.code is layout independent.
       e.preventDefault();
       const active = window.typewriterAudio.toggle();
       document.getElementById("btnAudioToggle")?.classList.toggle("active", active);
@@ -937,14 +956,19 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
 
   function markDirty() {
     state.isDirty = true;
-    saveStatus.textContent = state.currentPath ? "○ Modificato" : "○ Non salvato";
-    saveStatus.className = "save-status unsaved";
+    setSaveStatus(state.currentPath ? "○ Modificato" : "○ Non salvato", "unsaved");
   }
 
   function markSaved() {
     state.isDirty = false;
-    saveStatus.textContent = "● Salvato";
-    saveStatus.className = "save-status saved";
+    state.remoteChanged = false;
+    setSaveStatus("● Salvato", "saved");
+  }
+
+  function setSaveStatus(text, kind) {
+    if (!saveStatus) return;
+    saveStatus.textContent = text;
+    saveStatus.className = "save-status " + kind;
   }
 
   function updateDocTitle() {
@@ -982,15 +1006,14 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
   async function saveFile(isAutosave) {
     if (!state.currentPath) {
       if (isAutosave) {
-        const defDir = state.defaultDir || "";
-        state.currentPath = defDir ? defDir.replace(/[\\/]+$/, "") + "/Documento.md" : "Documento.md";
-        updateDocTitle();
-      } else {
-        promptSaveAs();
+        setSaveStatus("○ Non salvato", "unsaved");
         return;
       }
+      promptSaveAs();
+      return;
     }
 
+    state.saving = true;
     try {
       const res = await fetch(apiUrl("/api/save"), {
         method: "POST",
@@ -1013,22 +1036,75 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
       } else if (res.status === 409) {
         // Autosave must not block on a modal: only an explicit save asks.
         if (isAutosave) {
-          saveStatus.textContent = "⚠️ Modificato su disco";
+          setSaveStatus("⚠️ Modificato su disco", "unsaved");
+          state.remoteChanged = true;
           return;
         }
-        saveStatus.textContent = "⚠️ Modificato su disco — ricarica";
+        setSaveStatus("⚠️ Modificato su disco — ricarica", "unsaved");
         if (confirm("Il file e' cambiato su disco. Sovrascrivere comunque?")) {
           state.currentModTime = 0;
+          state.saving = false;
           await saveFile(false);
         }
       } else if (res.status === 401) {
-        saveStatus.textContent = "⚠️ Sessione scaduta — ricarica";
+        setSaveStatus("⚠️ Sessione scaduta — ricarica", "unsaved");
       } else {
-        saveStatus.textContent = "⚠️ Errore salvataggio";
+        setSaveStatus("⚠️ Errore salvataggio", "unsaved");
       }
     } catch (e) {
       console.error("Save error:", e);
-      saveStatus.textContent = "⚠️ Connessione persa";
+      setSaveStatus("⚠️ Connessione persa", "unsaved");
+    } finally {
+      state.saving = false;
+    }
+  }
+
+  // ------------------------------------------------- External change watchdog
+  //
+  // A document can be edited from another machine on a shared folder, by git, or
+  // by any other editor. Typora fixed exactly this in 1.13.7; TypeCraft only
+  // noticed at save time, and by then the choice was "overwrite or lose".
+  function startExternalWatch() {
+    if (state.watchTimer) return;
+    state.watchTimer = setInterval(checkExternalChange, 5000);
+  }
+
+  async function checkExternalChange() {
+    if (!state.currentPath || !state.appToken || state.saving) return;
+    if (typeof document.hidden !== "undefined" && document.hidden) return;
+    try {
+      const res = await fetch(apiUrl("/api/stat?path=" + encodeURIComponent(state.currentPath)));
+      if (!res.ok) return;
+      const stat = await res.json();
+      if (!stat.mod_time || stat.mod_time === state.currentModTime) return;
+
+      if (state.isDirty) {
+        if (!state.remoteChanged) {
+          state.remoteChanged = true;
+          setSaveStatus("⚠️ Cambiato su disco", "unsaved");
+        }
+        return;
+      }
+
+      const before = editor.value;
+      const fileRes = await fetch(apiUrl("/api/file?path=" + encodeURIComponent(state.currentPath)));
+      if (!fileRes.ok) return;
+      const data = await fileRes.json();
+      const content = data.content == null ? "" : data.content;
+      // Someone typed (or saved) while the two requests were in flight.
+      if (state.isDirty || editor.value !== before) return;
+      if (content === editor.value) {
+        state.currentModTime = data.mod_time || stat.mod_time;
+        return;
+      }
+
+      editor.value = content;
+      state.currentModTime = data.mod_time || stat.mod_time;
+      state.remoteChanged = false;
+      updateAllNow();
+      setSaveStatus("● Ricaricato dal disco", "saved");
+    } catch (_) {
+      // Offline for a tick is not an error worth surfacing.
     }
   }
 
@@ -1328,22 +1404,50 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
         fsFileNameInput?.focus();
         return;
       }
-      if (!/\.(md|markdown|txt)$/i.test(name)) {
-        name += ".md";
+      // Only add ".md" when the user did not type an extension. A "Note v1.2"
+      // is a title, not a file type; a "doc.fountain" is a deliberate choice and
+      // gets one explicit question instead of a silent rename.
+      const allowedExt = /\.(md|markdown|txt|mdown|mkd|mdwn|mdx)$/i;
+      if (!allowedExt.test(name)) {
+        const dot = name.lastIndexOf(".");
+        const tail = dot > 0 ? name.slice(dot + 1) : "";
+        const before = dot > 0 ? name.slice(0, dot) : name;
+        const looksLikeExtension = /^[A-Za-z0-9]{1,8}$/.test(tail) && !/\s/.test(before);
+        if (!looksLikeExtension) {
+          name += ".md";
+        } else {
+          if (!confirm(`TypeCraft salva solo documenti Markdown. Salvare come "${name}.md"?`)) {
+            fsFileNameInput?.focus();
+            return;
+          }
+          name += ".md";
+        }
       }
 
       const targetPath = fsState.currentDir.replace(/[\\/]+$/, "") + "/" + name;
+      const payload = {
+        old_path: state.currentPath || "",
+        new_path: targetPath,
+        content: editor.value,
+      };
 
-      try {
-        const res = await fetch(apiUrl("/api/rename"), {
+      const postRename = (body) =>
+        fetch(apiUrl("/api/rename"), {
           method: "POST",
           headers: apiHeaders(),
-          body: JSON.stringify({
-            old_path: state.currentPath || "",
-            new_path: targetPath,
-            content: editor.value,
-          }),
+          body: JSON.stringify(body),
         });
+
+      try {
+        let res = await postRename(payload);
+        // The backend refuses to replace a different existing document: ask,
+        // and only then resend with the explicit overwrite flag.
+        if (res.status === 409) {
+          if (!confirm(`Esiste gia' un file chiamato "${name}" in questa cartella. Sostituirlo?`)) {
+            return;
+          }
+          res = await postRename(Object.assign({}, payload, { overwrite: true }));
+        }
 
         if (res.ok) {
           const data = await res.json();

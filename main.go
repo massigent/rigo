@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"embed"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -31,7 +33,7 @@ import (
 var embeddedWebFS embed.FS
 
 var (
-	version      = "1.0.2"
+	version      = "1.0.3"
 	activeFileMu sync.RWMutex
 	activePath   string
 	activeDir    string
@@ -201,15 +203,42 @@ func isSafeImagePath(abs string) bool {
 	return false
 }
 
+// tokenEqual compares secrets in constant time so a local process cannot learn
+// the token byte by byte from response timing.
+func tokenEqual(got, want string) bool {
+	if want == "" || len(got) != len(want) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
+}
+
 func checkToken(r *http.Request) bool {
 	// Token via header (fetch) or query (?token= for window.open / img).
-	if r.Header.Get("X-Typecraft-Token") == appToken && appToken != "" {
+	if tokenEqual(r.Header.Get("X-Typecraft-Token"), appToken) {
 		return true
 	}
-	if r.URL.Query().Get("token") == appToken && appToken != "" {
+	return tokenEqual(r.URL.Query().Get("token"), appToken)
+}
+
+// isLocalOrigin reports whether an Origin header belongs to this machine.
+// A prefix test is not enough: "http://127.0.0.1.evil.com" starts with
+// "http://127.0.0.1" and would otherwise pass the DNS-rebinding guard.
+func isLocalOrigin(origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil || u.Scheme == "" {
+		return false
+	}
+	switch u.Scheme {
+	case "http", "https":
+	default:
+		return false
+	}
+	host := u.Hostname()
+	if strings.EqualFold(host, "localhost") {
 		return true
 	}
-	return false
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func initRecents() {
@@ -321,6 +350,14 @@ func buildWorkspaceTree(root string, depth int) (*FileNode, error) {
 
 func atomicWrite(filename string, data []byte) error {
 	dir := filepath.Dir(filename)
+	// Remember the mode of the file being replaced: os.CreateTemp always makes
+	// 0600, so a plain save used to silently chmod a 0644 document (and strip
+	// group access on a shared folder).
+	mode := fs.FileMode(0o644)
+	if fi, err := os.Stat(filename); err == nil {
+		mode = fi.Mode().Perm()
+	}
+
 	tmpFile, err := os.CreateTemp(dir, ".typecraft_tmp_*")
 	if err != nil {
 		return err
@@ -337,11 +374,59 @@ func atomicWrite(filename string, data []byte) error {
 	if err := tmpFile.Sync(); err != nil {
 		return err
 	}
+	if err := tmpFile.Chmod(mode); err != nil {
+		return err
+	}
 	if err := tmpFile.Close(); err != nil {
 		return err
 	}
 
-	return os.Rename(tmpName, filename)
+	if err := os.Rename(tmpName, filename); err != nil {
+		return err
+	}
+	// Make the rename durable too: without this a crash right after a save can
+	// leave the old directory entry in place on some filesystems.
+	if d, err := os.Open(dir); err == nil {
+		_ = d.Sync()
+		_ = d.Close()
+	}
+	return nil
+}
+
+// resolveForCompare resolves symlinks so two paths can be compared. A file that
+// does not exist yet (a picture referenced by the document but not saved, a
+// dangling link) still has a real parent folder: resolve that instead of
+// giving up and comparing a relative path against a resolved base (on macOS
+// /tmp is a symlink to /private/tmp, which made every missing asset look like a
+// traversal attempt).
+func resolveForCompare(p string) string {
+	if resolved, err := filepath.EvalSymlinks(p); err == nil {
+		return resolved
+	}
+	dir := filepath.Dir(p)
+	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+		return filepath.Join(resolved, filepath.Base(p))
+	}
+	return p
+}
+
+// pathWithin reports whether target lives inside base (both cleaned, and
+// resolved through symlinks when they exist). It is what keeps /api/asset from
+// serving any picture on the disk, which is what the endpoint always promised.
+func pathWithin(base, target string) bool {
+	if base == "" || target == "" {
+		return false
+	}
+	b := resolveForCompare(filepath.Clean(base))
+	t := resolveForCompare(filepath.Clean(target))
+	rel, err := filepath.Rel(b, t)
+	if err != nil {
+		return false
+	}
+	if rel == "." {
+		return true
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func dirExists(p string) bool {
@@ -430,13 +515,13 @@ func detectDefaultLinuxBrowser() string {
 	return ""
 }
 
-func openDesktopWindow(targetURL string, forceApp bool) {
+func openDesktopWindow(targetURL string, forceApp bool, token string) {
 	time.Sleep(200 * time.Millisecond)
 	sep := "?"
 	if strings.Contains(targetURL, "?") {
 		sep = "&"
 	}
-	targetURL = targetURL + sep + "token=" + appToken
+	targetURL = targetURL + sep + "token=" + token
 
 	if !forceApp {
 		openDefaultBrowser(targetURL)
@@ -543,8 +628,7 @@ func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Origin check (DNS-rebinding mitigation) + token check (real auth).
 		// Token is generated at startup and injected via /api/init.
-		origin := r.Header.Get("Origin")
-		if origin != "" && !strings.HasPrefix(origin, "http://127.0.0.1") && !strings.HasPrefix(origin, "http://localhost") {
+		if origin := r.Header.Get("Origin"); origin != "" && !isLocalOrigin(origin) {
 			http.Error(w, "Forbidden origin", http.StatusForbidden)
 			return
 		}
@@ -737,7 +821,10 @@ func handleInternalOpen(w http.ResponseWriter, r *http.Request) {
 	// running. Re-open the UI instead of silently swallowing the request (this is
 	// why a second double-click on the AppImage appeared to do nothing).
 	if events.count() == 0 && !noBrowser {
-		go openDesktopWindow(primaryURL(), appMode)
+		// Snapshot what the launcher needs before starting a goroutine: reading
+		// these globals inside it raced with anything that writes them.
+		url, forceApp, token := primaryURL(), appMode, appToken
+		go openDesktopWindow(url, forceApp, token)
 	}
 }
 
@@ -828,6 +915,33 @@ func setupMux() *http.ServeMux {
 			Content:  string(content),
 			ModTime:  modTime,
 			ReadOnly: false,
+		})
+	}))
+
+	// /api/stat is the cheap half of /api/file: the UI polls it to notice that the
+	// document changed on disk (another machine on a shared folder, a git
+	// checkout, an external editor) without re-reading it on every tick.
+	mux.HandleFunc("/api/stat", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		filePath := r.URL.Query().Get("path")
+		if filePath == "" {
+			http.Error(w, "missing path", http.StatusBadRequest)
+			return
+		}
+		cleanPath, err := cleanAbs(filePath)
+		if err != nil || !isSafeMarkdownPath(cleanPath) {
+			http.Error(w, "invalid path", http.StatusBadRequest)
+			return
+		}
+		fi, err := os.Stat(cleanPath)
+		if err != nil {
+			http.Error(w, "file not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"path":     cleanPath,
+			"mod_time": fi.ModTime().UnixNano(),
+			"size":     fi.Size(),
 		})
 	}))
 
@@ -1026,9 +1140,10 @@ func setupMux() *http.ServeMux {
 			return
 		}
 		var req struct {
-			OldPath string `json:"old_path"`
-			NewPath string `json:"new_path"`
-			Content string `json:"content"`
+			OldPath   string `json:"old_path"`
+			NewPath   string `json:"new_path"`
+			Content   string `json:"content"`
+			Overwrite bool   `json:"overwrite"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid payload", http.StatusBadRequest)
@@ -1040,8 +1155,11 @@ func setupMux() *http.ServeMux {
 			http.Error(w, "invalid new path", http.StatusBadRequest)
 			return
 		}
+		// Never rewrite the name the user typed: Typora's "it keeps forcing .md
+		// back" bug (fixed upstream in 1.13.7) came from exactly this guess.
 		if !isSafeMarkdownPath(newAbs) {
-			newAbs += ".md"
+			http.Error(w, "forbidden: save as .md, .markdown, .txt, .mdown, .mkd, .mdwn or .mdx", http.StatusBadRequest)
+			return
 		}
 
 		if err := os.MkdirAll(filepath.Dir(newAbs), 0o755); err != nil {
@@ -1051,8 +1169,25 @@ func setupMux() *http.ServeMux {
 
 		oldAbs := ""
 		if req.OldPath != "" {
-			if a, err := cleanAbs(req.OldPath); err == nil {
-				oldAbs = a
+			a, err := cleanAbs(req.OldPath)
+			if err != nil {
+				http.Error(w, "invalid old path", http.StatusBadRequest)
+				return
+			}
+			// The old file is removed after the new one is written: an unchecked
+			// old_path let a bad request delete any file on the disk.
+			if !isSafeMarkdownPath(a) {
+				http.Error(w, "forbidden: the previous file is not a markdown document", http.StatusForbidden)
+				return
+			}
+			oldAbs = a
+		}
+
+		// Refuse to silently replace a different document that already exists.
+		if oldAbs != newAbs && !req.Overwrite {
+			if fi, err := os.Stat(newAbs); err == nil && !fi.IsDir() {
+				http.Error(w, "exists: a file with this name is already there", http.StatusConflict)
+				return
 			}
 		}
 
@@ -1166,6 +1301,14 @@ func setupMux() *http.ServeMux {
 
 		if !isSafeImagePath(cleanTarget) {
 			http.Error(w, "forbidden asset path", http.StatusForbidden)
+			return
+		}
+
+		// Confinement: the endpoint only ever serves pictures of the open
+		// document's folder and below, as its contract says. Without this the
+		// tokenised URL could pull any image (or .svg) anywhere on the disk.
+		if baseDir == "" || !pathWithin(baseDir, cleanTarget) {
+			http.Error(w, "forbidden: asset outside the document folder", http.StatusForbidden)
 			return
 		}
 
@@ -1307,7 +1450,7 @@ func main() {
 	fmt.Println("=====================================================")
 
 	if !*noBrowserFlag {
-		go openDesktopWindow(appURL, *appFlag)
+		go openDesktopWindow(appURL, *appFlag, appToken)
 	}
 
 	server := &http.Server{

@@ -3,7 +3,7 @@
 
 GO ?= $(shell which go 2>/dev/null || echo $(HOME)/.local/go/bin/go)
 APP_NAME := typecraft
-VERSION := 1.0.2
+VERSION := 1.0.3
 DIST_DIR := dist
 
 .PHONY: all build test clean cross-compile dist-linux dist-windows dist-macos appimage

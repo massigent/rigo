@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -418,5 +419,261 @@ func TestFsAndRenameEndpoints(t *testing.T) {
 	activeFileMu.RUnlock()
 	if curActive != destPath {
 		t.Fatalf("expected activePath to be %s, got %s", destPath, curActive)
+	}
+}
+
+// --- Regression tests for the 1.0.3 review -------------------------------
+
+func TestIsLocalOriginRejectsLookalikeHosts(t *testing.T) {
+	allowed := []string{
+		"http://127.0.0.1:8080",
+		"http://localhost:1234",
+		"http://127.0.0.1",
+		"http://[::1]:8080",
+		"https://localhost",
+	}
+	for _, o := range allowed {
+		if !isLocalOrigin(o) {
+			t.Fatalf("%q is a loopback origin and must be allowed", o)
+		}
+	}
+	blocked := []string{
+		"http://127.0.0.1.evil.com",
+		"http://localhost.evil.com",
+		"http://evil.com",
+		"http://192.168.1.10:8080",
+		"ftp://127.0.0.1",
+		"null",
+		"",
+	}
+	for _, o := range blocked {
+		if isLocalOrigin(o) {
+			t.Fatalf("%q must not pass the DNS-rebinding guard", o)
+		}
+	}
+}
+
+func TestPathWithin(t *testing.T) {
+	base := t.TempDir()
+	inside := filepath.Join(base, "assets", "a.png")
+	if err := os.MkdirAll(filepath.Dir(inside), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(inside, []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !pathWithin(base, inside) {
+		t.Fatalf("%s should be inside %s", inside, base)
+	}
+	if !pathWithin(base, base) {
+		t.Fatal("a folder is inside itself")
+	}
+	if pathWithin(base, filepath.Join(base, "..", "other.png")) {
+		t.Fatal("a sibling path must be outside")
+	}
+	if pathWithin(base, "/etc/passwd") {
+		t.Fatal("/etc/passwd must be outside")
+	}
+
+	// A symlink inside the document folder pointing outside must not leak.
+	outside := filepath.Join(t.TempDir(), "secret.png")
+	if err := os.WriteFile(outside, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(base, "link.png")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if pathWithin(base, link) {
+		t.Fatal("a symlink escaping the document folder must be refused")
+	}
+}
+
+func TestAssetEndpointConfinedToDocumentFolder(t *testing.T) {
+	appToken = "test-token-asset"
+	docDir := t.TempDir()
+	inside := filepath.Join(docDir, "ok.png")
+	if err := os.WriteFile(inside, []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outsideDir := t.TempDir()
+	outside := filepath.Join(outsideDir, "private.png")
+	if err := os.WriteFile(outside, []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	activeFileMu.Lock()
+	prevDir := activeDir
+	activeDir = docDir
+	activeFileMu.Unlock()
+	defer func() {
+		activeFileMu.Lock()
+		activeDir = prevDir
+		activeFileMu.Unlock()
+	}()
+
+	mux := setupMux()
+	get := func(p string) int {
+		req := httptest.NewRequest("GET", "/api/asset?path="+urlQueryEscape(p), nil)
+		req.Header.Set("X-Typecraft-Token", "test-token-asset")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	if code := get(inside); code != http.StatusOK {
+		t.Fatalf("expected 200 for an image next to the document, got %d", code)
+	}
+	if code := get(outside); code != http.StatusForbidden {
+		t.Fatalf("expected 403 for an image outside the document folder, got %d", code)
+	}
+	if code := get("../" + filepath.Base(outside)); code != http.StatusForbidden {
+		t.Fatalf("expected 403 for a traversal attempt, got %d", code)
+	}
+}
+
+func urlQueryEscape(p string) string {
+	return url.QueryEscape(p)
+}
+
+func TestRenameRefusesToDeleteNonMarkdownAndToOverwrite(t *testing.T) {
+	appToken = "test-token-rename"
+	dir := t.TempDir()
+	secret := filepath.Join(dir, "private.png")
+	if err := os.WriteFile(secret, []byte("not markdown"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	existing := filepath.Join(dir, "existing.md")
+	if err := os.WriteFile(existing, []byte("keep me"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	mux := setupMux()
+	post := func(body map[string]interface{}) *httptest.ResponseRecorder {
+		data, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/rename", bytes.NewReader(data))
+		req.Header.Set("X-Typecraft-Token", "test-token-rename")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+
+	// 1. old_path pointing at a non-markdown file must not be deleted.
+	rec := post(map[string]interface{}{
+		"old_path": secret,
+		"new_path": filepath.Join(dir, "moved.md"),
+		"content":  "x",
+	})
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for a non-markdown old_path, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if _, err := os.Stat(secret); err != nil {
+		t.Fatalf("the non-markdown file was removed: %v", err)
+	}
+
+	// 2. an unknown extension is refused instead of silently rewritten.
+	rec = post(map[string]interface{}{
+		"new_path": filepath.Join(dir, "doc.fountain"),
+		"content":  "x",
+	})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for an unsupported extension, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(dir, "doc.fountain")); !os.IsNotExist(err) {
+		t.Fatal("nothing should have been written for a refused extension")
+	}
+
+	// 3. an existing different document is not replaced without asking.
+	rec = post(map[string]interface{}{
+		"new_path": existing,
+		"content":  "overwritten",
+	})
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409 when the target exists, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if data, _ := os.ReadFile(existing); string(data) != "keep me" {
+		t.Fatalf("existing file was overwritten without consent: %q", string(data))
+	}
+
+	// 4. ... and is replaced when the caller explicitly says so.
+	rec = post(map[string]interface{}{
+		"new_path":  existing,
+		"content":   "overwritten",
+		"overwrite": true,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 with overwrite, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if data, _ := os.ReadFile(existing); string(data) != "overwritten" {
+		t.Fatalf("overwrite did not happen: %q", string(data))
+	}
+}
+
+func TestAtomicWritePreservesFileMode(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "shared.md")
+	if err := os.WriteFile(target, []byte("old"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := atomicWrite(target, []byte("new")); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Stat(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fi.Mode().Perm(); got != 0o640 {
+		t.Fatalf("expected mode 0640 to survive the save, got %o", got)
+	}
+	if data, _ := os.ReadFile(target); string(data) != "new" {
+		t.Fatalf("content not written: %q", string(data))
+	}
+}
+
+func TestStatEndpointReportsModTime(t *testing.T) {
+	appToken = "test-token-stat"
+	dir := t.TempDir()
+	doc := filepath.Join(dir, "a.md")
+	if err := os.WriteFile(doc, []byte("# hi"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mux := setupMux()
+	req := httptest.NewRequest("GET", "/api/stat?path="+urlQueryEscape(doc), nil)
+	req.Header.Set("X-Typecraft-Token", "test-token-stat")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var out struct {
+		Path    string `json:"path"`
+		ModTime int64  `json:"mod_time"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatalf("bad json: %v", err)
+	}
+	if out.Path != doc || out.ModTime == 0 {
+		t.Fatalf("unexpected stat payload: %+v", out)
+	}
+}
+
+func TestPathWithinHandlesMissingFileUnderSymlinkedBase(t *testing.T) {
+	base := t.TempDir()
+	// A picture the document references but that is not on disk yet must be
+	// treated as "inside" (the handler then answers 404, not 403).
+	if !pathWithin(base, filepath.Join(base, "not-saved-yet.png")) {
+		t.Fatal("a missing file inside the document folder must still be inside")
+	}
+	if pathWithin(base, filepath.Join(base, "..", "outside.png")) {
+		t.Fatal("traversal must stay outside")
+	}
+	// macOS /tmp is a symlink: base resolved and target not.
+	symlinkedBase := filepath.Join(os.TempDir(), "typecraft-"+t.Name())
+	if err := os.MkdirAll(symlinkedBase, 0o755); err != nil {
+		t.Skip(err)
+	}
+	defer os.RemoveAll(symlinkedBase)
+	if !pathWithin(symlinkedBase, filepath.Join(symlinkedBase, "x.png")) {
+		t.Fatal("a missing file under a symlinked base must be inside")
 	}
 }

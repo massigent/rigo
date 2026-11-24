@@ -1,21 +1,23 @@
 # TypeCraft ✍️
 
-**The minimalist, distraction-free, high-performance Markdown editor for all platforms.**
+**A local-first Markdown editor for focused writing.**
 
-TypeCraft combines the deep immersion and iconic **Typewriter Mode with Focus Dimming** from **iA Writer** with the seamless **Hybrid Live Preview & Table Editing** of **Typora**, built on top of the ultra-lightweight **single-binary architecture** proven in **PubCraft**.
+Write in plain Markdown, then switch between source, rendered preview, and a synchronized split view. Typewriter scrolling and sentence or paragraph focus keep the current passage in view. Your documents stay in ordinary files on disk; no account is required. A single Go executable serves the interface in your browser.
+
+[Download for Linux x86_64](https://github.com/massigent/typecraft/tree/downloads/v1.0.3) · [Release notes](docs/releases/v1.0.3.md) · [Italiano](README.it.md)
 
 ---
 
-## 🌟 The Best of Both Worlds
+## Features
 
-### From iA Writer:
+### Focused writing
 - **Continuous Typewriter Scrolling**: The active line remains fixed vertically at center (`45vh`). The document moves beneath your typing fingers smoothly using sub-pixel caret tracking (`requestAnimationFrame` + invisible mirror offset calculation).
 - **3-Level Focus Mode (Sentence / Paragraph / Off)**: Press `Ctrl+D` to isolate your current sentence or paragraph. Surrounding text gently fades out (`30% opacity`), eliminating cognitive clutter.
 - **Genuine Typography Included**: Embedded authentic **iA Writer Mono**, **iA Writer Duo**, and **iA Writer Quattro** fonts, plus classical editorial serif typefaces (**EB Garamond**, **Lora**).
 - **Tactile Typewriter Mechanical Sound (Web Audio API)**: Toggle organic mechanical key clicks and carriage return bells with `Ctrl+Alt+T` (100% synthesized in code, zero audio assets needed).
 - **Disappearing Zen Chrome**: As you type, toolbars and counters fade out completely.
 
-### From Typora:
+### Markdown and preview
 - **Seamless Live Preview**: Switch effortlessly between raw focus writing (`Ctrl+1`), formatted live preview (`Ctrl+2`), or synchronized dual split view (`Ctrl+3`).
 - **Interactive Task Lists**: Checkboxes (`- [ ]` and `- [x]`) are clickable directly on screen and immediately sync with the underlying Markdown file and auto-save.
 - **Formatted Tables**: Clean rounded markdown tables with alternating row zebra stripes.
@@ -24,11 +26,10 @@ TypeCraft combines the deep immersion and iconic **Typewriter Mode with Focus Di
 - **Math Formulas**: Inline `$E=mc^2$` and block `$$\sum_{i=1}^n x_i$$` are protected from Markdown parsing and rendered as styled TeX source. *KaTeX is not bundled yet (see Roadmap), so formulas are not typeset.*
 - **Dynamic Outline (TOC) Drawer**: Real-time table of contents (`Ctrl+Shift+O`) listing H1–H6 headings with instant click-to-jump navigation.
 
-### From PubCraft's Engineering:
-- **Zero-Dependency Single Binary**: No Electron bloat, no Node.js runtime required. Compiles to an independent 11 MB binary using Go.
-- **Instant Launch (<50ms)** and tiny memory footprint (<25MB RAM).
-- **Native Window Integration**: Automatically launches in app window mode via Chrome, Chromium, Brave, or Edge (`--app`), or system default browser.
-- **Two-Phase Atomic Saving**: Writes to a temp file and syncs to disk before replacement, guaranteeing zero data loss.
+### Local operation
+- **Single Go executable:** no Electron or Node.js runtime. A browser is required for the interface.
+- **Desktop launcher:** launches in a supported browser's standalone window mode or opens in the default browser.
+- **File protection:** saves replace files atomically, detect external edits, and respect read-only files. Save As writes a copy rather than moving the original.
 
 ---
 
@@ -87,6 +88,40 @@ Pre-built binaries will be placed in `dist/`:
 - `typecraft-macos-arm64`
 - `typecraft-windows-amd64.exe`
 
+### AppImage packaging (Linux):
+`make appimage` requires `appimagetool` on `PATH` (or an explicit `APPIMAGETOOL=/path/to/appimagetool`).
+It always builds a fresh Linux amd64 ELF, stages the desktop file, icon and `AppRun` in a private
+temporary directory under `dist/`, and publishes `dist/TypeCraft-x86_64.AppImage` only after success:
+
+```bash
+make appimage
+
+# Optional overrides
+make appimage APPIMAGETOOL=/path/to/appimagetool DIST_DIR=release
+```
+
+`make install-appdir` builds a fresh Linux amd64 binary at
+`TypeCraft.AppDir/usr/bin/typecraft` for local desktop testing; that ignored file is not used by the AppImage target.
+Failed builds remove their staging directory and partial AppImage, leaving any previous artifact intact.
+
+### Native Linux packages (x86_64)
+
+`make deb` uses `dpkg-deb`, and `make rpm` uses `rpmbuild`. `make linux-packages` builds both native packages and the AppImage in `dist/`. The targets do not install system dependencies.
+
+```bash
+# Ubuntu
+sudo apt install ./dist/typecraft_1.0.3-1_amd64.deb
+
+# Fedora
+sudo dnf install ./dist/typecraft-1.0.3-1.x86_64.rpm
+
+# AppImage (no installation required)
+chmod +x dist/TypeCraft-x86_64.AppImage
+./dist/TypeCraft-x86_64.AppImage
+```
+
+On a system without FUSE, launch the AppImage with `APPIMAGE_EXTRACT_AND_RUN=1`. After installing the DEB or RPM, open **TypeCraft** from the applications menu or run `typecraft`.
+
 ---
 
 ## 📄 License
@@ -108,7 +143,7 @@ A review pass against real iA Writer and Typora builds fixed the following:
 - **Unsaved changes are protected** by a `beforeunload` guard.
 
 **Feature fixes**
-- **Task list checkboxes are actually clickable**: `marked` emits `disabled` inputs, which never fire `click`; the click handler also counted `[x]` in ordinary prose and could toggle the wrong line. Both are fixed.
+- **Task list checkboxes toggle the exact marker**: each Markdown task checkbox is mapped through Marked's own token tree to the precise marker in the buffer (bulleted, numbered, nested, quoted and duplicate tasks, including `[X]`). Prose `[x]`, HTML authors, inline/fenced/indented code and stale previews cannot shift or authorise an edit; ignored clicks do not dirty the document, and read-only tasks are disabled.
 - **Checkmark visibility** (a `::after` on an `<input>` never renders) and **Focus dimming text no longer drifts** away from the caret (the highlighted line had a heavier weight, which changed glyph widths).
 - **Links open in the external browser** instead of navigating the editor away, and links to other local `.md` files open inside TypeCraft.
 - **Local images** now resolve relative to the document (`/api/asset`), with a broken-image placeholder.
@@ -148,6 +183,15 @@ binary probed over HTTP). Full detail in `REVIEW-1.0.3.md`.
 - **`/api/rename` can no longer delete arbitrary files**: `old_path` must be a Markdown document.
 - **DNS-rebinding guard fixed**: `http://127.0.0.1.evil.com` and `http://localhost.evil.com` passed the
   prefix test; the host is now compared exactly.
+- **Host/Origin boundary completed**: every request — landing page, `/static/*`, the `/api/init`
+  handshake, tokenised APIs, `/api/events`, `/api/internal/open` and unknown paths — now needs the
+  actual listener authority (`127.0.0.1:<port>` or `localhost:<port>`, hostname case-insensitive). A
+  valid token does not authorise a foreign Host, so a rebinding name that resolves to 127.0.0.1 gets a
+  `403` before any content or token is served. An `Origin` header, when present, must be same-origin
+  (same scheme, host and port; no userinfo, path, query, fragment or multiple values); without it the
+  request is allowed only after a valid Host and still needs the API token (or the internal control
+  secret). `Forwarded`/`X-Forwarded-*` grant no trust, and rejections keep the security headers. This
+  is a local loopback boundary, not isolation from other processes running as the same user.
 - **Token compared in constant time** (`subtle.ConstantTimeCompare`).
 
 **Data**
@@ -160,11 +204,49 @@ binary probed over HTTP). Full detail in `REVIEW-1.0.3.md`.
   like a file type.
 - **External change watchdog** (`/api/stat`, every 5 s — Typora 1.13.7): a clean buffer reloads
   (`● Reloaded from disk`), a dirty one shows `⚠️ Changed on disk` and not a single typed line is
-  touched; a file opened at launch reads its `mtime` immediately, so the first auto-save no longer skips
-  the conflict check.
+  touched.
+- **Saves and conflicts use opaque content revisions** (`sha256:<hex>` of the file bytes) instead of
+  timestamps: an external edit is detected even when `mtime` and size are identical, a save with a stale
+  baseline gets a structured `409` (never a silent overwrite), a file deleted on disk is not recreated,
+  and a rename verifies the source revision before touching anything. `mod_time` stays metadata;
+  oversized integer timestamps are no longer the baseline. `/api/stat` now hashes the file on every
+  poll (one read per window every 5 s), which is the price for detecting same-metadata changes.
+  Legacy API clients that sent only `mod_time` must read a revision and send `expected_revision`
+  (`428 revision_required` otherwise).
+- **Read-only documents are protected by the backend, not only by the UI**: a file with no write bits
+  (or without effective write access for the process) is reported as `read_only` and cannot be saved,
+  renamed or replaced by the atomic write, even with an explicit content-conflict override; a protected
+  destination is refused too. The editor is locked (including toolbar, tables and preview task boxes),
+  autosave is suspended, and an explicit **Save a copy** writes a new document with `old_path` empty so
+  the original is never modified or deleted. POSIX mode bits are the app policy; Windows/POSIX ACLs
+  beyond the process view are only advisory and surface as a `write_forbidden` error at write time
+  (a read-only filesystem, `EROFS`, is a write refusal too). A rename needs removal rights on the
+  source directory, not only write access to the file: when the destination was written but the
+  source could not be removed, the answer is an explicit **incomplete/partial** error (source kept,
+  no automatic rollback, no active-document switch), never a fake success. At launch, an unreadable
+  active file is reported instead of being shown as a clean empty document, and a protocol-invalid
+  server answer keeps the buffer dirty with an explicit warning (no path/baseline adoption, no blind
+  retry).
+- **Save As keeps the original**: «Salva con nome» (`Ctrl/Cmd+Shift+S` or the menu) writes the current
+  buffer to a new path and leaves the source untouched; only «Rinomina / Sposta» (click on the title)
+  moves the file, and only on full success. Save As sends an explicit `source_path` and the backend
+  refuses a destination that is the source itself (same path, symlink alias, same file/hard link), so a
+  copy can never clobber the original (symlink chains, dangling links, symlinked folders and hard links
+  are refused or fail explicitly; the dialog suggests a `*-copia.md` name). A destination that is a
+  symlink entry the source path traverses (for example a directory link needed to reach the original)
+  is refused as `copy_same_source` even when the final referents differ or `overwrite` is set.
+  Relative link targets are resolved from the link's physical directory, including symlinked folders and
+  the existing prefix of a missing path; a distinct destination entry whose referent is missing still
+  requires explicit overwrite consent. Cancelling or a denied destination leaves the source and the
+  dirty buffer intact, and edits typed while an unconfirmed copy was pending are kept in the buffer
+  instead of being auto-saved onto the source.
 
 **Engineering**
-- 6 new regression tests (19 total, `go test ./...` green, `go vet` clean).
+- Current regression suite: 79 top-level Go tests (`go test -race -shuffle=on ./...`) and 118
+  frontend tests after `npm ci`; `go vet`, JS/CJS/MJS syntax checks and `git diff --check` are clean.
+- Copy-identity verification is a preflight serialized with this process's writes, **not** a filesystem
+  CAS: an external process can still mutate the paths between verification and the atomic write.
+  Symlink chains are bounded (40 hops) and hard links are conservatively refused as aliases.
 
 ---
 

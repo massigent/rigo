@@ -304,6 +304,12 @@ body.is-typing .status-bar:not(:hover) {
   color: #ff9500;
 }
 
+/* Read-only policy from the backend: distinct from "saved". */
+.save-status.readonly {
+  color: var(--fg-secondary);
+  font-weight: 600;
+}
+
 .stats-pill {
   font-size: 12px;
   font-weight: 500;

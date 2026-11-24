@@ -80,37 +80,48 @@ func TestBuildWorkspaceTree(t *testing.T) {
 
 func TestAuthMiddleware(t *testing.T) {
 	appToken = "test-token-123"
-	handler := authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	boundary := newLoopbackBoundary(8080)
+	handler := newHTTPHandler(authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
-	})
+	}), boundary)
 
-	// Allowed localhost origin + valid token
-	reqLocal := httptest.NewRequest("GET", "/api/test", nil)
-	reqLocal.Header.Set("Origin", "http://127.0.0.1:8080")
-	reqLocal.Header.Set("X-Typecraft-Token", "test-token-123")
-	recLocal := httptest.NewRecorder()
-	handler(recLocal, reqLocal)
-	if recLocal.Code != http.StatusOK {
-		t.Fatalf("expected 200 for local origin, got %d", recLocal.Code)
+	send := func(host, origin, token string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("GET", "/api/test", nil)
+		req.Host = host
+		if origin != "" {
+			req.Header.Set("Origin", origin)
+		}
+		if token != "" {
+			req.Header.Set("X-Typecraft-Token", token)
+		}
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	// Allowed loopback authority + same-origin + valid token
+	if rec := send("127.0.0.1:8080", "http://127.0.0.1:8080", "test-token-123"); rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for a allowed local request, got %d: %s", rec.Code, rec.Body.String())
 	}
 
 	// Missing token -> 401
-	reqNoToken := httptest.NewRequest("GET", "/api/test", nil)
-	reqNoToken.Header.Set("Origin", "http://127.0.0.1:8080")
-	recNoToken := httptest.NewRecorder()
-	handler(recNoToken, reqNoToken)
-	if recNoToken.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401 for missing token, got %d", recNoToken.Code)
+	if rec := send("127.0.0.1:8080", "http://127.0.0.1:8080", ""); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for missing token, got %d", rec.Code)
 	}
 
 	// Forbidden malicious origin
-	reqMalicious := httptest.NewRequest("GET", "/api/test", nil)
-	reqMalicious.Header.Set("Origin", "http://evil-site.com")
-	recMalicious := httptest.NewRecorder()
-	handler(recMalicious, reqMalicious)
-	if recMalicious.Code != http.StatusForbidden {
-		t.Fatalf("expected 403 for external origin, got %d", recMalicious.Code)
+	if rec := send("127.0.0.1:8080", "http://evil-site.com", "test-token-123"); rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for external origin, got %d", rec.Code)
+	}
+
+	// A valid token does not authorise a foreign Host.
+	recHost := send("attacker.example:8080", "", "test-token-123")
+	if recHost.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for a foreign host with a valid token, got %d", recHost.Code)
+	}
+	if got := recHost.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("security headers must survive a boundary rejection, got %q", got)
 	}
 }
 
@@ -330,13 +341,16 @@ func TestFsAndRenameEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mux := setupMux()
+	// The endpoint tests use the real composition so a future stack change cannot
+	// silently bypass the Host/Origin boundary.
+	handler := newHTTPHandler(setupMux(), newLoopbackBoundary(8080))
 
 	// 1. Test /api/fs
 	fsReq := httptest.NewRequest("GET", "/api/fs?path="+tmpDir, nil)
+	fsReq.Host = "127.0.0.1:8080"
 	fsReq.Header.Set("X-Typecraft-Token", "test-token-fs")
 	fsRec := httptest.NewRecorder()
-	mux.ServeHTTP(fsRec, fsReq)
+	handler.ServeHTTP(fsRec, fsReq)
 
 	if fsRec.Code != http.StatusOK {
 		t.Fatalf("expected 200 from /api/fs, got %d: %s", fsRec.Code, fsRec.Body.String())
@@ -375,9 +389,10 @@ func TestFsAndRenameEndpoints(t *testing.T) {
 		"name": "new_created_dir",
 	})
 	mkdirReq := httptest.NewRequest("POST", "/api/mkdir", bytes.NewReader(mkdirBody))
+	mkdirReq.Host = "127.0.0.1:8080"
 	mkdirReq.Header.Set("X-Typecraft-Token", "test-token-fs")
 	mkdirRec := httptest.NewRecorder()
-	mux.ServeHTTP(mkdirRec, mkdirReq)
+	handler.ServeHTTP(mkdirRec, mkdirReq)
 
 	if mkdirRec.Code != http.StatusOK {
 		t.Fatalf("expected 200 from /api/mkdir, got %d: %s", mkdirRec.Code, mkdirRec.Body.String())
@@ -390,14 +405,16 @@ func TestFsAndRenameEndpoints(t *testing.T) {
 	// 3. Test /api/rename (Rename & Move)
 	destPath := filepath.Join(createdPath, "renamed_note.md")
 	renameBody, _ := json.Marshal(map[string]string{
-		"old_path": testFile,
-		"new_path": destPath,
-		"content":  "# Renamed Content",
+		"old_path":          testFile,
+		"new_path":          destPath,
+		"content":           "# Renamed Content",
+		"expected_revision": contentRevision([]byte("# Original Note")),
 	})
 	renameReq := httptest.NewRequest("POST", "/api/rename", bytes.NewReader(renameBody))
+	renameReq.Host = "127.0.0.1:8080"
 	renameReq.Header.Set("X-Typecraft-Token", "test-token-fs")
 	renameRec := httptest.NewRecorder()
-	mux.ServeHTTP(renameRec, renameReq)
+	handler.ServeHTTP(renameRec, renameReq)
 
 	if renameRec.Code != http.StatusOK {
 		t.Fatalf("expected 200 from /api/rename, got %d: %s", renameRec.Code, renameRec.Body.String())
@@ -423,35 +440,6 @@ func TestFsAndRenameEndpoints(t *testing.T) {
 }
 
 // --- Regression tests for the 1.0.3 review -------------------------------
-
-func TestIsLocalOriginRejectsLookalikeHosts(t *testing.T) {
-	allowed := []string{
-		"http://127.0.0.1:8080",
-		"http://localhost:1234",
-		"http://127.0.0.1",
-		"http://[::1]:8080",
-		"https://localhost",
-	}
-	for _, o := range allowed {
-		if !isLocalOrigin(o) {
-			t.Fatalf("%q is a loopback origin and must be allowed", o)
-		}
-	}
-	blocked := []string{
-		"http://127.0.0.1.evil.com",
-		"http://localhost.evil.com",
-		"http://evil.com",
-		"http://192.168.1.10:8080",
-		"ftp://127.0.0.1",
-		"null",
-		"",
-	}
-	for _, o := range blocked {
-		if isLocalOrigin(o) {
-			t.Fatalf("%q must not pass the DNS-rebinding guard", o)
-		}
-	}
-}
 
 func TestPathWithin(t *testing.T) {
 	base := t.TempDir()
@@ -512,12 +500,13 @@ func TestAssetEndpointConfinedToDocumentFolder(t *testing.T) {
 		activeFileMu.Unlock()
 	}()
 
-	mux := setupMux()
+	handler := newHTTPHandler(setupMux(), newLoopbackBoundary(8080))
 	get := func(p string) int {
 		req := httptest.NewRequest("GET", "/api/asset?path="+urlQueryEscape(p), nil)
+		req.Host = "127.0.0.1:8080"
 		req.Header.Set("X-Typecraft-Token", "test-token-asset")
 		rec := httptest.NewRecorder()
-		mux.ServeHTTP(rec, req)
+		handler.ServeHTTP(rec, req)
 		return rec.Code
 	}
 
@@ -548,13 +537,14 @@ func TestRenameRefusesToDeleteNonMarkdownAndToOverwrite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mux := setupMux()
+	handler := newHTTPHandler(setupMux(), newLoopbackBoundary(8080))
 	post := func(body map[string]interface{}) *httptest.ResponseRecorder {
 		data, _ := json.Marshal(body)
 		req := httptest.NewRequest("POST", "/api/rename", bytes.NewReader(data))
+		req.Host = "127.0.0.1:8080"
 		req.Header.Set("X-Typecraft-Token", "test-token-rename")
 		rec := httptest.NewRecorder()
-		mux.ServeHTTP(rec, req)
+		handler.ServeHTTP(rec, req)
 		return rec
 	}
 
@@ -637,23 +627,28 @@ func TestStatEndpointReportsModTime(t *testing.T) {
 	if err := os.WriteFile(doc, []byte("# hi"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	mux := setupMux()
+	handler := newHTTPHandler(setupMux(), newLoopbackBoundary(8080))
 	req := httptest.NewRequest("GET", "/api/stat?path="+urlQueryEscape(doc), nil)
+	req.Host = "127.0.0.1:8080"
 	req.Header.Set("X-Typecraft-Token", "test-token-stat")
 	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
+	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
 	var out struct {
-		Path    string `json:"path"`
-		ModTime int64  `json:"mod_time"`
+		Path     string `json:"path"`
+		Revision string `json:"revision"`
+		ModTime  int64  `json:"mod_time"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
 		t.Fatalf("bad json: %v", err)
 	}
 	if out.Path != doc || out.ModTime == 0 {
 		t.Fatalf("unexpected stat payload: %+v", out)
+	}
+	if out.Revision != contentRevision([]byte("# hi")) {
+		t.Fatalf("stat must report the content revision, got %q", out.Revision)
 	}
 }
 

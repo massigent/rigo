@@ -1,21 +1,23 @@
 # TypeCraft ✍️
 
-**L'editor Markdown minimalista, senza distrazioni e ad alte prestazioni per tutte le piattaforme.**
+**Un editor Markdown locale per scrivere senza distrazioni.**
 
-TypeCraft unisce la pura concentrazione e la celebre **modalità macchina da scrivere con Focus Mode** di **iA Writer** con l'eccezionale **Live Preview ibrida** di **Typora**, poggiando sulla solidissima architettura **single-binary a zero dipendenze** collaudata in **PubCraft**.
+Scrivi in Markdown e passa dal sorgente all’anteprima o alla vista affiancata. Lo scorrimento a macchina da scrivere e la messa a fuoco per frase o paragrafo ti aiutano a restare sul testo. I documenti restano normali file sul disco: non serve un account. Un unico eseguibile Go serve l’interfaccia nel browser.
+
+[Scarica per Linux x86_64](https://github.com/massigent/typecraft/tree/downloads/v1.0.3) · [Note di rilascio](docs/releases/v1.0.3.md) · [English](README.md)
 
 ---
 
-## 🌟 La Sintesi Perfetta
+## Funzionalità
 
-### Da iA Writer:
+### Scrittura senza distrazioni
 - **Scorrimento Continuo a Macchina da Scrivere**: La riga attiva di scrittura rimane perfettamente fissata al centro dello schermo (a 45vh). Man mano che scrivi o premi invio, il testo scorre morbidamente sotto le tue dita grazie a un algoritmo di centratura in sub-pixel (`requestAnimationFrame` + calcolo esatto del caret tramite *mirror element*).
 - **Focus Mode a 3 Livelli (Frase / Paragrafo / Spento)**: Con `Ctrl+D` isoli la frase o il paragrafo che stai componendo. Tutto il testo circostante viene delicatamente attenuato (opacità 30%), eliminando il sovraccarico visivo e focalizzando il flusso di pensiero.
 - **Tipografia d'Autore Integrata**: Include i font originali **iA Writer Mono**, **iA Writer Duo** e **iA Writer Quattro**, oltre ai caratteri serif editoriali **EB Garamond** e **Lora**.
 - **Feedback Tattile Meccanico (Audio Web API)**: Premi `Ctrl+Alt+T` per attivare il leggero ticchettio sintetico da macchina da scrivere d'epoca e il ritorno a capo a campana (completamente sintetizzato via codice, zero file audio esterni o ritardi).
 - **Interfaccia Zen Invisibile**: Quando inizi a scrivere, ogni barra di stato, menu e conteggio svanisce dolcemente. Basta muovere il cursore o premere Esc per riattivare la pulsantiera.
 
-### Da Typora:
+### Markdown e anteprima
 - **Live Preview Ibrida Fluida**: Passa istantaneamente dalla modalità pura testo (`Ctrl+1`) all'anteprima formattata (`Ctrl+2`) o alla visualizzazione affiancata sincronizzata (`Ctrl+3`).
 - **Elenchi Puntati e Task List Interattive**: I checkbox `- [ ]` e `- [x]` si renderizzano graficamente e sono **cliccabili direttamente a schermo**: cliccando su una casella, il Markdown sottostante si aggiorna in tempo reale salvando il documento!
 - **Tabelle Formattate**: Le tabelle Markdown (`| col1 | col2 |`) vengono presentate con bordi arrotondati, testate distinte e righe alternate zebrate.
@@ -24,12 +26,10 @@ TypeCraft unisce la pura concentrazione e la celebre **modalità macchina da scr
 - **Immagini Locali**: `![alt](./img.png)` viene risolto rispetto alla cartella del documento e servito dall'app (niente immagini rotte né percorsi indovinati).
 - **Indice Dinamico (Outline TOC)**: Barra laterale scorrevole (`Ctrl+Shift+O`) che estrae in tempo reale la gerarchia dei titoli da `# H1` a `###### H6`, permettendo di saltare all'istante a qualsiasi sezione.
 
-### Dall'Ingegneria di PubCraft:
-- **Binario Unico Portatile**: Nessuna dipendenza da Electron, Node.js o librerie C pesanti. Un solo file eseguibile compilato in Go che racchiude interamente l'interfaccia web e i font.
-- **Avvio Istantaneo (< 50 ms)** e consumo di memoria irrisorio (< 25 MB RAM).
-- **Gestione Documento in Stile macOS / PubCraft**: Cliccando sul nome del file nella barra superiore Zen HUD (o con `Ctrl+Shift+S`) si apre il selettore interattivo per rinominare o salvare con nome: navigazione completa tra le cartelle su disco con breadcrumb cliccabili, scorciatoie rapide (📁 Workspace, 📄 Documenti, 🖥️ Scrivania, 📥 Download, 🏠 Home), pulsante per creare nuove cartelle e filtro di ricerca in tempo reale.
-- **Finestra Desktop Nativizzata**: Rileva automaticamente Google Chrome, Chromium, Brave o Microsoft Edge per avviare TypeCraft in modalità `--app` a finestra indipendente senza cornici da browser (oppure nel browser di sistema).
-- **Salvataggio Atomico & Sicurezza Locale**: Nessun cloud forzato. I file restano tuoi sul tuo disco, con salvataggio atomico a due fasi (file `.tmp` e rename) per garantire zero perdite di dati anche in caso di interruzione improvvisa.
+### Uso locale
+- **Un eseguibile Go:** non richiede Electron o Node.js. L’interfaccia usa il browser.
+- **Avvio desktop:** usa la modalità finestra autonoma dei browser compatibili oppure apre il browser di sistema.
+- **Protezione dei file:** il salvataggio sostituisce il file atomicamente, rileva le modifiche esterne e rispetta la sola lettura. «Salva con nome» crea una copia; il titolo permette di rinominare o spostare il file.
 
 ---
 
@@ -94,6 +94,40 @@ I binari compilati saranno posizionati nella cartella `dist/`:
 - `typecraft-macos-arm64`
 - `typecraft-windows-amd64.exe`
 
+### Creazione dell'AppImage (Linux):
+`make appimage` richiede `appimagetool` nel `PATH` (oppure `APPIMAGETOOL=/percorso/appimagetool`).
+Compila sempre un binario Linux amd64 ELF aggiornato, prepara desktop file, icona e `AppRun` in una
+cartella temporanea privata sotto `dist/` e pubblica `dist/TypeCraft-x86_64.AppImage` solo a build riuscita:
+
+```bash
+make appimage
+
+# Override facoltativi
+make appimage APPIMAGETOOL=/percorso/appimagetool DIST_DIR=release
+```
+
+`make install-appdir` compila un binario Linux amd64 aggiornato in
+`TypeCraft.AppDir/usr/bin/typecraft` per i test locali del desktop; l'AppImage non usa questo file.
+In caso di errore la staging e l'AppImage parziale vengono rimosse, lasciando intatto l'artefatto precedente.
+
+### Pacchetti Linux nativi (x86_64)
+
+`make deb` usa `dpkg-deb`, `make rpm` usa `rpmbuild`; `make linux-packages` crea tutti e tre i formati in `dist/`. I target non installano dipendenze sul sistema.
+
+```bash
+# Ubuntu
+sudo apt install ./dist/typecraft_1.0.3-1_amd64.deb
+
+# Fedora
+sudo dnf install ./dist/typecraft-1.0.3-1.x86_64.rpm
+
+# AppImage (non richiede installazione)
+chmod +x dist/TypeCraft-x86_64.AppImage
+./dist/TypeCraft-x86_64.AppImage
+```
+
+Su un sistema senza FUSE, avvia l'AppImage con `APPIMAGE_EXTRACT_AND_RUN=1`. Dopo aver installato il DEB o l'RPM, cerca **TypeCraft** nel menu applicazioni o esegui `typecraft`.
+
 ### Opzioni da Riga di Comando:
 - `./typecraft [file.md]` : Apre immediatamente il file indicato.
 - `./typecraft [cartella]` : Apre la cartella come spazio di lavoro (workspace).
@@ -117,7 +151,7 @@ Revisione condotta confrontando il codice con build reali di iA Writer e Typora:
 - **Le modifiche non salvate sono protette** da un guardiano `beforeunload`.
 
 **Funzionalità corrette**
-- **Le checkbox delle task list sono davvero cliccabili**: `marked` emette input `disabled`, che non generano mai l'evento `click`; inoltre il gestore contava anche i `[x]` nel testo normale e poteva barrare la riga sbagliata. Entrambi corretti.
+- **Le checkbox delle task list cambiano solo il marcatore giusto**: ogni task Markdown è mappata tramite l'albero di token di Marked al preciso marcatore nel buffer (liste puntate, numerate, annidate, in citazione e task duplicate, incluso `[X]`). `[x]` nel testo, HTML dell'autore, codice inline/recintato/indentato e preview stale non possono spostare o autorizzare un edit; i click ignorati non sporcano il documento e le task in sola lettura sono disabilitate.
 - **Segno di spunta visibile** (un `::after` su un `<input>` non viene mai renderizzato) e **il Focus Mode non fa più scivolare il testo** rispetto al caret (la riga evidenziata aveva un peso maggiore, che cambia la larghezza dei glifi).
 - **I link si aprono nel browser esterno** invece di far navigare via l'editor, e i link ad altri file `.md` locali si aprono dentro TypeCraft.
 - **Immagini locali** risolte rispetto al documento (`/api/asset`), con segnaposto per le immagini mancanti.
@@ -148,16 +182,25 @@ Dettaglio completo in `REVIEW-1.0.3.md`.
 - **`/api/asset` confinato alla cartella del documento**: serviva qualsiasi immagine del disco (anche `.svg`) pur dichiarando il contrario; ora usa `pathWithin()` con risoluzione dei symlink.
 - **`/api/rename` non cancella più file arbitrari**: `old_path` deve essere un documento Markdown.
 - **Difesa anti-DNS-rebinding corretta**: `http://127.0.0.1.evil.com` e `http://localhost.evil.com` passavano il controllo a prefisso; ora si confronta l'host esatto.
+- **Confine Host/Origin completato**: ogni richiesta — pagina, `/static/*`, handshake `/api/init`, API con token, `/api/events`, `/api/internal/open` e percorsi sconosciuti — deve usare l'authority effettiva del listener (`127.0.0.1:<porta>` o `localhost:<porta>`, hostname senza distinzione di maiuscole). Un token valido non autorizza un Host estraneo: un nome da DNS-rebinding che risolve su 127.0.0.1 riceve `403` prima che venga servito qualsiasi contenuto o token. Se `Origin` è presente deve essere same-origin (stesso schema, host e porta; niente userinfo, path, query, frammenti o valori multipli); se manca, la richiesta passa solo dopo un Host valido e richiede comunque il token dell'API (o il control secret del canale interno). `Forwarded`/`X-Forwarded-*` non danno fiducia e i rifiuti conservano gli header di sicurezza. È un confine loopback locale, non un isolamento da altri processi dello stesso utente.
 - **Token confrontato a tempo costante** (`subtle.ConstantTimeCompare`).
 
 **Dati**
 - **Il salvataggio conserva i permessi del file** (prima ogni save trasformava un `0644`/`0640` in `0600`) e fa `fsync` anche sulla cartella.
 - **"Salva con nome" non sovrascrive più in silenzio**: il backend risponde `409` e sostituisce solo dopo conferma (`overwrite: true`).
 - **L'estensione scritta non viene più riscritta a forza** (il bug che Typora ha corretto in 1.13.7): estensioni non Markdown = `400` con l'elenco ammesso, con una domanda esplicita solo quando sembra davvero un tipo di file.
-- **Watchdog delle modifiche esterne** (`/api/stat`, ogni 5 s, il bug Typora 1.13.7): se il buffer è pulito si ricarica (`● Ricaricato dal disco`), se stai scrivendo mostra `⚠️ Cambiato su disco` senza toccare una riga; e un file aperto all'avvio legge subito il proprio `mtime`, quindi il primo auto-salvataggio non salta più il controllo di conflitto.
+- **Watchdog delle modifiche esterne** (`/api/stat`, ogni 5 s, il bug Typora 1.13.7): se il buffer è pulito si ricarica (`● Ricaricato dal disco`), se stai scrivendo mostra `⚠️ Cambiato su disco` senza toccare una riga.
+- **Salvataggi e conflitti usano revisioni opache di contenuto** (`sha256:<hex>` dei byte del file) invece dei timestamp: una modifica esterna viene rilevata anche con `mtime` e dimensione identici, un salvataggio con baseline vecchia riceve un `409` strutturato (mai una sovrascrittura silenziosa), un file eliminato su disco non viene ricreato e una rinomina verifica prima la revisione sorgente. `mod_time` resta metadato; i timestamp interi fuori precisione non sono più la baseline. `/api/stat` ora calcola l'hash del file a ogni poll (una lettura per finestra ogni 5 s): è il costo per rilevare modifiche con metadata identici. I client API legacy che inviavano solo `mod_time` devono leggere una revisione e mandare `expected_revision` (altrimenti `428 revision_required`).
+- **I documenti in sola lettura sono protetti dal backend, non solo dalla UI**: un file senza bit di scrittura (o senza accesso effettivo in scrittura per il processo) viene esposto come `read_only` e non può essere salvato, rinominato o sostituito dal salvataggio atomico, nemmeno con un override esplicito di un conflitto di contenuto; anche una destinazione protetta viene rifiutata. L'editor si blocca (toolbar, tabelle e checkbox delle task comprese), l'autosave è sospeso e il comando esplicito **Salva una copia** crea un nuovo documento con `old_path` vuoto, senza mai modificare o cancellare l'originale. I bit POSIX sono la policy applicativa; ACL Windows/POSIX oltre la vista del processo restano consultive e si manifestano come errore `write_forbidden` al momento della scrittura (anche un filesystem read-only, `EROFS`). Una rinomina richiede il diritto di rimuovere il file dalla directory di origine, non solo l'accesso in scrittura al file: se la destinazione è stata scritta ma il sorgente non può essere rimosso, la risposta è un errore esplicito di **esito parziale** (sorgente conservato, nessun rollback automatico, nessun passaggio del documento attivo), mai un falso successo.
+- **Salva con nome non sposta più il file**: «Salva con nome» (`Ctrl/Cmd+Shift+S` o il menu) scrive il buffer corrente in un nuovo percorso e lascia intatto il sorgente; solo «Rinomina / Sposta» (click sul titolo) sposta il file, e solo a successo completo. Il salvataggio con nome invia un `source_path` esplicito e il backend rifiuta una destinazione che identifica il sorgente (stesso percorso, alias symlink, stesso file/hard link), quindi una copia non può mai sovrascrivere l'originale (catene di symlink, link dangling, cartelle symlink e hard link vengono rifiutati o falliscono in modo esplicito; il dialogo suggerisce un nome `*-copia.md`). Una destinazione che è una entry symlink attraversata dal percorso sorgente (per esempio una cartella link necessaria per raggiungere l'originale) viene rifiutata come `copy_same_source` anche se i referenti finali sono diversi o è attivo `overwrite`. I target relativi sono risolti dalla directory fisica del link, comprese le cartelle symlink e il prefisso esistente di un percorso mancante; una destinazione distinta la cui entry esiste ma il cui referente manca richiede comunque un consenso esplicito all'overwrite. Annullare o una destinazione negata lascia intatti sorgente e buffer dirty, e gli edit digitati mentre una copia non confermata era pendente restano nel buffer invece di finire con l'autosave sul sorgente. All'avvio un file attivo illeggibile viene segnalato invece di apparire come documento vuoto e pulito, e una risposta del server non conforme al protocollo lascia il buffer dirty con un avviso esplicito (nessuna adozione di percorso/baseline, nessun retry alla cieca).
 
 **Ingegneria**
-- 6 nuovi test di regressione (19 in totale, `go test ./...` verde, `go vet` pulito).
+- Suite di regressione corrente: 79 test Go di primo livello (`go test -race -shuffle=on ./...`) e
+  118 test frontend dopo `npm ci`; `go vet`, sintassi JS/CJS/MJS e `git diff --check` puliti.
+- La verifica dell'identità della copia è un preflight serializzato con le scritture di questo
+  processo, **non** un CAS del filesystem: un processo esterno può ancora mutare i percorsi fra la
+  verifica e la scrittura atomica. Le catene di symlink sono limitate (40 hop) e gli hard link sono
+  rifiutati conservativamente come alias.
 
 ---
 

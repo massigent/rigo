@@ -8,28 +8,6 @@ class OutlineEngine {
     this._deb = null;
   }
 
-  // Rubato a Ferrite: ignora code-block, supporta ## chiuse, strippa **bold** etc.
-  stripInline(s) {
-    return (s || "")
-      .replace(/\*\*(.+?)\*\*/g, "$1").replace(/__(.+?)__/g, "$1")
-      .replace(/`(.+?)`/g, "$1").replace(/~~(.+?)~~/g, "$1")
-      .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1").replace(/!\[([^\]]*)\]\([^\)]+\)/g, "$1")
-      .trim();
-  }
-
-  parseHeading(line) {
-    const t = line.replace(/^\s+/, "");
-    if (!t.startsWith("#")) return null;
-    let i = 0;
-    while (i < t.length && t[i] === "#" && i < 6) i++;
-    if (i === 0 || i > 6) return null;
-    const rest = t.slice(i);
-    if (rest !== "" && rest[0] !== " " && rest[0] !== "\t") return null; // #Title non valido
-    const title = this.stripInline(rest.replace(/\s+#+(\s+)?$/, "").trim());
-    if (!title) return null;
-    return { level: i, title };
-  }
-
   update() {
     if (!this.container || !this.editor) return;
     clearTimeout(this._deb);
@@ -40,26 +18,11 @@ class OutlineEngine {
     if (!this.container || !this.editor) return;
 
     const text = this.editor.value || "";
-    const lines = text.split("\n");
-    const headings = [];
-    let inCode = false;
-
-    let charOffset = 0;
-    lines.forEach((line, lineIndex) => {
-      const trimmed = line.trim();
-      if (trimmed.startsWith("```")) { inCode = !inCode; charOffset += line.length + 1; return; }
-      if (inCode) { charOffset += line.length + 1; return; }
-      const h = this.parseHeading(line);
-      if (h) {
-        headings.push({
-          level: h.level,
-          title: h.title,
-          lineIndex: lineIndex,
-          charOffset: charOffset,
-        });
-      }
-      charOffset += line.length + 1; // +1 for \n
-    });
+    // Use the same parser/masking as the live preview: Marked decides what is
+    // a real heading (backtick/tilde fences, longer closers, indentation,
+    // unclosed fences, nested containers and HTML blocks), so fake headings in
+    // code never leak into the outline. Offsets are exact source positions.
+    const headings = window.livePreview?.parseHeadings(text) || [];
 
     if (headings.length === 0) {
       this.container.innerHTML = `
@@ -78,6 +41,7 @@ class OutlineEngine {
       item.title = `${"#".repeat(h.level)} ${h.title} (Riga ${h.lineIndex + 1})`;
 
       item.addEventListener("click", () => {
+        if (this.editor.value !== text || !this.container.contains(item)) return;
         this.jumpToHeading(h);
       });
 

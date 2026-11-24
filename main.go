@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
 	"embed"
 	"encoding/hex"
@@ -87,28 +88,65 @@ type InitResponse struct {
 	ActiveDir   string   `json:"active_dir"`
 	DefaultDir  string   `json:"default_dir"`
 	FileContent string   `json:"file_content"`
-	Recents     []string `json:"recents"`
-	OS          string   `json:"os"`
+	// FileRevision describes exactly FileContent: both come from the same
+	// snapshot read (see readDiskSnapshot). Empty only when the file is missing.
+	FileRevision string `json:"file_revision"`
+	// FileExists distinguishes "the active file is really empty" (true, with a
+	// revision over the empty bytes) from "the active file is gone" (false).
+	FileExists bool     `json:"file_exists"`
+	// ReadOnly is the application write policy for the active file; it is not
+	// part of the content revision. ReadOnlyReason is advisory metadata.
+	ReadOnly       bool     `json:"read_only"`
+	ReadOnlyReason string   `json:"read_only_reason,omitempty"`
+	Recents        []string `json:"recents"`
+	OS             string   `json:"os"`
 }
 
 type SaveRequest struct {
 	Path    string `json:"path"`
 	Content string `json:"content"`
-	ModTime int64  `json:"mod_time,omitempty"` // unix nano; 0 = no check (first save)
+	// ExpectedRevision is the opaque disk revision the client last read for this
+	// path. It is required to overwrite an existing file (unless Force is set)
+	// and is compared for equality, never by order.
+	ExpectedRevision string `json:"expected_revision,omitempty"`
+	// Force is the explicit one-shot overwrite authorised by the user after a
+	// conflict. It is not a persistent flag and it never resurrects a deleted
+	// file that the client knew about.
+	Force bool `json:"force,omitempty"`
+	// ModTime is the legacy baseline. It is accepted for JSON compatibility but
+	// ignored: a legacy client sending only mod_time (including 0) now gets 428
+	// revision_required instead of silently bypassing the check.
+	ModTime int64 `json:"mod_time,omitempty"`
 }
 
 type SaveResponse struct {
 	Success bool   `json:"success"`
 	Path    string `json:"path"`
-	ModTime int64  `json:"mod_time,omitempty"`
-	Error   string `json:"error,omitempty"`
+	// Revision is the opaque disk revision of the content that was written.
+	Revision string `json:"revision"`
+	// ModTime is metadata only (unix nano), never an integrity criterion.
+	ModTime  int64  `json:"mod_time,omitempty"`
+	ReadOnly bool   `json:"read_only"`
+	Error    string `json:"error,omitempty"`
 }
 
 type FileResponse struct {
-	Path     string `json:"path"`
-	Content  string `json:"content"`
-	ModTime  int64  `json:"mod_time"`
-	ReadOnly bool   `json:"read_only"`
+	Path           string `json:"path"`
+	Content        string `json:"content"`
+	Revision       string `json:"revision"`
+	ModTime        int64  `json:"mod_time"`
+	ReadOnly       bool   `json:"read_only"`
+	ReadOnlyReason string `json:"read_only_reason,omitempty"`
+}
+
+type StatResponse struct {
+	Path           string `json:"path"`
+	Exists         bool   `json:"exists"`
+	Revision       string `json:"revision"`
+	ModTime        int64  `json:"mod_time"`
+	Size           int64  `json:"size"`
+	ReadOnly       bool   `json:"read_only"`
+	ReadOnlyReason string `json:"read_only_reason,omitempty"`
 }
 
 type FileNode struct {
@@ -220,25 +258,203 @@ func checkToken(r *http.Request) bool {
 	return tokenEqual(r.URL.Query().Get("token"), appToken)
 }
 
-// isLocalOrigin reports whether an Origin header belongs to this machine.
-// A prefix test is not enough: "http://127.0.0.1.evil.com" starts with
-// "http://127.0.0.1" and would otherwise pass the DNS-rebinding guard.
-func isLocalOrigin(origin string) bool {
+// --------------------------------------------------------------- HTTP boundary
+//
+// The UI is served on 127.0.0.1 with an ephemeral port and a random token, but
+// neither a loopback listener nor a token alone stops DNS rebinding: a page
+// hosted on attacker.example can make that name resolve to 127.0.0.1, so its
+// requests arrive with Host: attacker.example:<port> and often no Origin at all
+// (several GETs never send one). httpBoundary is the immutable authority policy
+// of one instance: it is built once from the effective listener port and is
+// enforced for every path (static assets, the /api/init handshake, tokenised
+// APIs, SSE, the internal channel and unknown paths) before any handler runs.
+//
+// Policy:
+//   - request authority is taken from r.Host (the effective authority, also for
+//     absolute-form requests), parsed structurally, never resolved via DNS;
+//   - accepted hostnames are exactly "127.0.0.1" and "localhost"
+//     (case-insensitive). IPv6 literals are not served by the 127.0.0.1
+//     listener and are refused;
+//   - the port must be the effective listener port (the scheme default port may
+//     be omitted, which a browser does for port 80);
+//   - a malformed or ambiguous authority is refused;
+//   - Forwarded / X-Forwarded-Host / X-Forwarded-Proto are never consulted: the
+//     app is not behind a reverse proxy and those headers grant no trust;
+//   - an Origin header, when present, must be exactly one value, with no
+//     userinfo/path/query/fragment, the same scheme, and the same host and
+//     effective port as the (already validated) request Host, i.e. same-origin;
+//     "null", external origins, different schemes/ports and multiple values are
+//     refused. Absence of Origin is allowed only after a valid Host.
+//
+// Rejections are always 403 (malformed authority included, so the response does
+// not distinguish "malformed" from "not allowed"), carry the security headers
+// because the boundary runs inside securityHeaders, and never expose document
+// content, the UI token or the control secret.
+type httpBoundary struct {
+	port   int
+	scheme string
+	hosts  []string
+}
+
+// newLoopbackBoundary fixes the allowed authorities for one listener. The slice
+// is never mutated after construction, so the policy cannot change at runtime.
+func newLoopbackBoundary(port int) *httpBoundary {
+	return &httpBoundary{
+		port:   port,
+		scheme: "http",
+		hosts:  []string{"127.0.0.1", "localhost"},
+	}
+}
+
+func (b *httpBoundary) defaultPort() int {
+	if b.scheme == "https" {
+		return 443
+	}
+	return 80
+}
+
+// parseAuthority splits a Host-style authority into a hostname and port. Only
+// "host" and "host:port" are accepted: the instance listens on IPv4 loopback
+// only, so every bracketed/IPv6 literal is refused instead of being
+// canonicalised (net.IP.String() would collapse "::ffff:127.0.0.1" into
+// "127.0.0.1" and silently admit an authority the policy never listed, or make
+// two distinct browser origins look identical). Empty, ambiguous or
+// non-canonical forms (leading zeros in the port, userinfo, paths, whitespace,
+// extra colons) are refused too.
+func parseAuthority(raw string) (host, port string, hasPort, ok bool) {
+	if raw == "" || strings.ContainsAny(raw, " \t\r\n\x00/?#@\\,;\"'<>[]") {
+		return "", "", false, false
+	}
+	if idx := strings.LastIndexByte(raw, ':'); idx >= 0 {
+		if strings.Contains(raw[:idx], ":") {
+			return "", "", false, false // unbracketed IPv6 or ambiguous
+		}
+		host, port = raw[:idx], raw[idx+1:]
+		if !validPortText(port) {
+			return "", "", false, false
+		}
+		return host, port, true, true
+	}
+	return raw, "", false, true
+}
+
+func validPortText(p string) bool {
+	if p == "" || len(p) > 5 {
+		return false
+	}
+	for i := 0; i < len(p); i++ {
+		if p[i] < '0' || p[i] > '9' {
+			return false
+		}
+	}
+	n, err := strconv.Atoi(p)
+	if err != nil || n < 1 || n > 65535 {
+		return false
+	}
+	return strconv.Itoa(n) == p // refuse leading zeros / non-canonical forms
+}
+
+func (b *httpBoundary) hostNameAllowed(host string) bool {
+	host = strings.ToLower(host)
+	for _, allowed := range b.hosts {
+		if host == allowed {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *httpBoundary) authorityAllowed(host string, port string, hasPort bool) bool {
+	if !b.hostNameAllowed(host) {
+		return false
+	}
+	if hasPort {
+		return port == strconv.Itoa(b.port)
+	}
+	// A browser omits the port only for the scheme default (http -> 80).
+	return b.port == b.defaultPort()
+}
+
+func (b *httpBoundary) hostAllowed(rawHost string) bool {
+	host, port, hasPort, ok := parseAuthority(rawHost)
+	if !ok {
+		return false
+	}
+	return b.authorityAllowed(host, port, hasPort)
+}
+
+func (b *httpBoundary) effectivePort(port string, hasPort bool) int {
+	if hasPort {
+		n, _ := strconv.Atoi(port)
+		return n
+	}
+	return b.defaultPort()
+}
+
+// originAllowed validates one Origin header value against the request authority
+// (which the caller has already validated). Same-origin only: the UI is served
+// from the same host/port that it calls, so a legitimate fetch sends exactly the
+// request authority.
+func (b *httpBoundary) originAllowed(reqHost, origin string) bool {
+	if origin == "" || strings.ContainsAny(origin, " \t\r\n") {
+		return false
+	}
+	// An Origin is a serialised origin and never carries a fragment delimiter,
+	// not even an empty one: net/url drops the "#" of "http://host:port#", so the
+	// Fragment/RawFragment fields alone cannot detect it.
+	if strings.Contains(origin, "#") {
+		return false
+	}
 	u, err := url.Parse(origin)
-	if err != nil || u.Scheme == "" {
+	if err != nil {
 		return false
 	}
-	switch u.Scheme {
-	case "http", "https":
-	default:
+	if !strings.EqualFold(u.Scheme, b.scheme) || u.User != nil || u.Opaque != "" || u.Host == "" {
 		return false
 	}
-	host := u.Hostname()
-	if strings.EqualFold(host, "localhost") {
-		return true
+	// An Origin is a serialised origin: no path, query or fragment is allowed.
+	if u.Path != "" || u.RawPath != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.RawFragment != "" {
+		return false
 	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
+	originHost, originPort, originHasPort, ok := parseAuthority(u.Host)
+	if !ok || !b.authorityAllowed(originHost, originPort, originHasPort) {
+		return false
+	}
+	reqName, reqPort, reqHasPort, ok := parseAuthority(reqHost)
+	if !ok {
+		return false
+	}
+	if !strings.EqualFold(originHost, reqName) {
+		return false
+	}
+	return b.effectivePort(originPort, originHasPort) == b.effectivePort(reqPort, reqHasPort)
+}
+
+// localBoundaryMiddleware applies the policy before any handler can read the
+// request or mutate state. The Origin header is checked only when present, and
+// only after the Host has been accepted.
+func localBoundaryMiddleware(b *httpBoundary, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if b == nil || !b.hostAllowed(r.Host) {
+			http.Error(w, "forbidden: host not allowed", http.StatusForbidden)
+			return
+		}
+		if origins := r.Header.Values("Origin"); len(origins) > 0 {
+			if len(origins) != 1 || !b.originAllowed(r.Host, origins[0]) {
+				http.Error(w, "forbidden: origin not allowed", http.StatusForbidden)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// newHTTPHandler is the single composition point of the local HTTP stack: main()
+// builds it once from the real listener port and the integration tests build the
+// same stack from a real loopback listener, so there is exactly one Host/Origin
+// policy and it is the one that actually runs.
+func newHTTPHandler(mux http.Handler, boundary *httpBoundary) http.Handler {
+	return securityHeaders(localBoundaryMiddleware(boundary, mux))
 }
 
 func initRecents() {
@@ -391,6 +607,491 @@ func atomicWrite(filename string, data []byte) error {
 		_ = d.Close()
 	}
 	return nil
+}
+
+// ------------------------------------------------------- Disk revisions
+//
+// A disk revision is an opaque string ("sha256:<64 lowercase hex>") computed
+// over the exact bytes of one snapshot. It is compared for equality only: never
+// by order, never through Number/parseInt/BigInt, so it survives JSON integer
+// precision limits end to end. It is a *content fingerprint*, not a historical
+// generation: A -> B -> A produces the same revision again, and replacing the
+// file with identical bytes (new inode, new mtime) is not reported as a change.
+const diskRevisionPrefix = "sha256:"
+
+// diskWriteMu serialises the read-check-write sequence of save and rename inside
+// this process, so two requests carrying the same baseline cannot both pass. It
+// does not cover other programs: the window between verification and the atomic
+// rename remains (TOCTOU), described in the handlers and in AUDIT.
+var diskWriteMu sync.Mutex
+
+func contentRevision(data []byte) string {
+	sum := sha256.Sum256(data)
+	return diskRevisionPrefix + hex.EncodeToString(sum[:])
+}
+
+func validDiskRevision(rev string) bool {
+	if !strings.HasPrefix(rev, diskRevisionPrefix) {
+		return false
+	}
+	h := rev[len(diskRevisionPrefix):]
+	if len(h) != sha256.Size*2 {
+		return false
+	}
+	for i := 0; i < len(h); i++ {
+		c := h[i]
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			return false
+		}
+	}
+	return true
+}
+
+var errUnstableSnapshot = errors.New("file changed while it was being read")
+
+type diskSnapshot struct {
+	Exists   bool
+	Content  []byte
+	Revision string
+	ModTime  int64
+	Size     int64
+	Mode     os.FileMode
+}
+
+// readDiskSnapshot reads p and computes the revision of the bytes actually
+// returned, so content and revision always describe the same snapshot. If the
+// file is modified or replaced while it is being read (before/after fstat
+// disagree, or the path no longer points at the opened inode), the read is
+// retried a bounded number of times and then reported as unstable instead of
+// looping.
+func readDiskSnapshot(p string) (diskSnapshot, error) {
+	const attempts = 3
+	for i := 0; i < attempts; i++ {
+		snap, stable, err := readSnapshotOnce(p)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return diskSnapshot{Exists: false}, nil
+			}
+			return diskSnapshot{}, err
+		}
+		if stable {
+			return snap, nil
+		}
+	}
+	return diskSnapshot{}, errUnstableSnapshot
+}
+
+func readSnapshotOnce(p string) (diskSnapshot, bool, error) {
+	f, err := os.Open(p)
+	if err != nil {
+		return diskSnapshot{}, false, err
+	}
+	defer f.Close()
+
+	before, err := f.Stat()
+	if err != nil {
+		return diskSnapshot{}, false, err
+	}
+	if !before.Mode().IsRegular() {
+		return diskSnapshot{}, false, fmt.Errorf("not a regular file: %s", p)
+	}
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return diskSnapshot{}, false, err
+	}
+	after, err := f.Stat()
+	if err != nil {
+		return diskSnapshot{}, false, err
+	}
+	if before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) {
+		return diskSnapshot{}, false, nil
+	}
+	// The path must still refer to the inode that was read: an atomic replace in
+	// the middle of the read would otherwise attach the old bytes to the new
+	// directory entry.
+	now, err := os.Stat(p)
+	if err != nil || !os.SameFile(after, now) {
+		return diskSnapshot{}, false, nil
+	}
+	return diskSnapshot{
+		Exists:   true,
+		Content:  data,
+		Revision: contentRevision(data),
+		ModTime:  after.ModTime().UnixNano(),
+		Size:     after.Size(),
+		Mode:     after.Mode(),
+	}, true, nil
+}
+
+// ------------------------------------------------------- Read-only policy
+//
+// writeProtection decides whether this application will replace/remove an
+// existing file. It is a *policy* on top of the OS permissions, deliberately
+// conservative:
+//
+//   - on POSIX, a regular file with no write bit (mode & 0222 == 0) is protected
+//     even when a privileged process could still replace it through the parent
+//     directory: atomic save uses rename(2), which does not need write access to
+//     the file itself;
+//   - when the bits allow writing, an effective access check (open O_WRONLY and
+//     close, without writing or truncating) catches EACCES/EROFS/... for the
+//     running user;
+//   - the check never modifies content, permissions, mtime or owner.
+//
+// Limits (documented in AUDIT): mode.Perm() cannot express Windows ACLs or
+// POSIX ACLs/groups beyond the process view; such denials are caught by the
+// write itself and reported as write_forbidden (see writeFailureStatus). This is
+// not a full ACL/Windows verification, only the app policy plus the OS error.
+func writeProtection(path string, snap diskSnapshot) (bool, string) {
+	if !snap.Exists {
+		return false, ""
+	}
+	if snap.Mode.Perm()&0o222 == 0 {
+		return true, "no_write_bits"
+	}
+	// Effective access check without touching the document. On POSIX a regular
+	// file can be opened O_WRONLY without truncating; we close it immediately.
+	f, err := os.OpenFile(path, os.O_WRONLY, 0)
+	if err != nil {
+		if os.IsPermission(err) || errors.Is(err, fs.ErrPermission) {
+			return true, "access_denied"
+		}
+		// Read-only filesystem and similar hard errors: refuse rather than guess.
+		return true, "write_unavailable"
+	}
+	_ = f.Close()
+	return false, ""
+}
+
+// writeFailureStatus maps an operational write error to an API status/code. A
+// permission problem discovered only when writing is still a refusal, never a
+// declared success; it is reported as write_forbidden (not a content conflict).
+// pathReadOnly is the destination-side variant of writeProtection: it stats the
+// path (no content read) and applies the same policy to an existing regular
+// file. It is used before replacing a rename destination.
+func pathReadOnly(p string) (bool, string) {
+	fi, err := os.Stat(p)
+	if err != nil || !fi.Mode().IsRegular() {
+		return false, ""
+	}
+	return writeProtection(p, diskSnapshot{Exists: true, Mode: fi.Mode()})
+}
+
+// copyIdentityPath resolves a path for copy alias detection only (it does not
+// change the general symlink policy of the app). It walks the path component by
+// component, so a relative symlink target is interpreted from the *physical*
+// directory that contains the link and a `..` after a symlink is applied after
+// that symlink, not with an early lexical Clean of the Readlink text. Symlinked
+// directories, relative/absolute targets and dangling links are handled. Once a
+// component is missing the already-resolved prefix is kept and the remaining
+// components are applied lexically (no deeper entry can exist), so an existing
+// prefix of a missing target still compares against the real referent.
+// Symlink hops are bounded; a cycle and operational errors (ELOOP, EACCES, I/O)
+// are returned explicitly, never degraded to a lexical comparison. A genuinely
+// missing source or destination is not an error: absence is not aliasing.
+func copyIdentityPath(p string) (string, error) {
+	resolved, _, err := copyIdentityPathWithLinks(p)
+	return resolved, err
+}
+
+// copyIdentityPathWithLinks is copyIdentityPath plus the canonical paths of the
+// symlink *entries* actually traversed, including links reached inside a
+// Readlink target. The entries are recorded with their physical parent already
+// resolved, so they identify the directory entry a rename/atomic write would
+// replace (the final link is not followed for this purpose).
+func copyIdentityPathWithLinks(p string) (string, []string, error) {
+	if p == "" {
+		return "", nil, fmt.Errorf("empty path")
+	}
+	var resolved string
+	var parts []string
+	if filepath.IsAbs(p) {
+		resolved = copyVolumeRoot(p)
+		parts = copyPathComponents(p)
+	} else {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", nil, err
+		}
+		resolved = cwd
+		parts = copyPathComponents(p)
+	}
+
+	links := []string{}
+	const maxLinks = 40
+	hops := 0
+	missing := false
+	for i := 0; i < len(parts); i++ {
+		comp := parts[i]
+		if comp == "" || comp == "." {
+			continue
+		}
+		if comp == ".." {
+			resolved = filepath.Dir(resolved)
+			continue
+		}
+		if missing {
+			resolved = copyJoinRaw(resolved, comp)
+			continue
+		}
+		candidate := copyJoinRaw(resolved, comp)
+		fi, err := os.Lstat(candidate)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return "", nil, err
+			}
+			resolved = candidate
+			missing = true
+			continue
+		}
+		if fi.Mode()&os.ModeSymlink == 0 {
+			resolved = candidate
+			continue
+		}
+		// The entry itself is what a destination write would replace: record it
+		// before following the link's target.
+		links = append(links, candidate)
+		target, err := os.Readlink(candidate)
+		if err != nil {
+			return "", nil, err
+		}
+		hops++
+		if hops > maxLinks {
+			return "", nil, fmt.Errorf("too many levels of symbolic links: %s", p)
+		}
+		if filepath.IsAbs(target) {
+			resolved = copyVolumeRoot(target)
+		}
+		// A relative target is appended to `resolved` (the physical parent of the
+		// link) without cleaning its own `..` components first.
+		rest := copyPathComponents(target)
+		parts = append(rest, parts[i+1:]...)
+		i = -1 // continue with the target components, then the original suffix
+	}
+	return filepath.Clean(resolved), links, nil
+}
+
+// copyPathComponents splits an absolute or relative path without normalising
+// `..`; only the volume/root is handled separately. On Windows both separators
+// are accepted, on Unix the backslash remains a legal filename character.
+func copyPathComponents(p string) []string {
+	p = strings.TrimPrefix(p, filepath.VolumeName(p))
+	return strings.FieldsFunc(p, func(r rune) bool {
+		if r == filepath.Separator {
+			return true
+		}
+		return runtime.GOOS == "windows" && r == '/'
+	})
+}
+
+func copyVolumeRoot(p string) string {
+	return filepath.VolumeName(p) + string(filepath.Separator)
+}
+
+// copyJoinRaw appends one component without Clean: the caller resolves `..`
+// only after the symlinks that precede it have been interpreted.
+func copyJoinRaw(dir, comp string) string {
+	if dir == "" {
+		return comp
+	}
+	if strings.HasSuffix(dir, string(filepath.Separator)) {
+		return dir + comp
+	}
+	return dir + string(filepath.Separator) + comp
+}
+
+// copyDestinationAliasesSource reports whether a copy destination identifies the
+// source: same resolved path (including dangling symlink targets), or the same
+// existing file (os.SameFile, which also covers hard links, case-insensitive
+// filesystems and bind mounts of the same inode — conservative by design).
+// It never writes, truncates or changes permissions and never inspects content.
+// A genuinely missing source is fine (copying a buffer whose file disappeared is
+// allowed); an unverifiable identity on either side is an explicit error, never
+// an assumption of difference. This is a preflight under diskWriteMu, not a
+// filesystem CAS: an external process can still change the paths afterwards.
+func copyDestinationAliasesSource(sourcePath, destPath string) (bool, string, error) {
+	srcID, err := copyIdentityPath(sourcePath)
+	if err != nil {
+		return false, "", err
+	}
+	dstID, err := copyIdentityPath(destPath)
+	if err != nil {
+		return false, "", err
+	}
+	if srcID == dstID {
+		return true, "same_path", nil
+	}
+	srcInfo, err := os.Stat(srcID)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, "", nil
+		}
+		return false, "", err
+	}
+	dstInfo, err := os.Stat(dstID)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, "", nil
+		}
+		return false, "", err
+	}
+	if os.SameFile(srcInfo, dstInfo) {
+		return true, "same_file", nil
+	}
+	return false, "", nil
+}
+
+// copyEntryIdentityPath returns the identity of the directory *entry* at p:
+// its parent is resolved through the same finite symlink resolver, but the final
+// component is appended without following it. This is the path a copy's atomic
+// write would replace (the link itself, not its referent).
+func copyEntryIdentityPath(p string) (string, error) {
+	if p == "" {
+		return "", fmt.Errorf("empty path")
+	}
+	if strings.HasSuffix(p, string(filepath.Separator)) {
+		return copyIdentityPath(p)
+	}
+	base := filepath.Base(p)
+	if base == "." || base == ".." || base == string(filepath.Separator) {
+		return copyIdentityPath(p)
+	}
+	parent, err := copyIdentityPath(filepath.Dir(p))
+	if err != nil {
+		return "", err
+	}
+	return copyJoinRaw(parent, base), nil
+}
+
+// copyDestinationReplacesSourceLink reports whether the destination entry is one
+// of the symlink entries the source path actually traverses. Replacing such an
+// entry with a regular file would break the source's access (for example a
+// directory symlink used as an intermediate component), even when the final
+// referents are different. The existing referent comparison is deliberately
+// separate: this check is about the directory entry, not the resolved target.
+// It is a preflight under diskWriteMu, not a filesystem CAS.
+func copyDestinationReplacesSourceLink(sourcePath, destPath string) (bool, string, error) {
+	_, links, err := copyIdentityPathWithLinks(sourcePath)
+	if err != nil {
+		return false, "", err
+	}
+	if len(links) == 0 {
+		return false, "", nil
+	}
+	destEntry, err := copyEntryIdentityPath(destPath)
+	if err != nil {
+		return false, "", err
+	}
+	for _, entry := range links {
+		if copySameEntry(entry, destEntry) {
+			return true, "source_link_entry", nil
+		}
+	}
+	return false, "", nil
+}
+
+// copySameEntry compares two existing directory entries without following a
+// final symlink. The canonical path comparison covers aliases of the parent
+// directory; os.SameFile on Lstat covers the same entry seen through another
+// filesystem alias (case-insensitive filesystem or bind mount).
+func copySameEntry(a, b string) bool {
+	if a == b {
+		return true
+	}
+	ai, err := os.Lstat(a)
+	if err != nil {
+		return false
+	}
+	bi, err := os.Lstat(b)
+	if err != nil {
+		return false
+	}
+	return os.SameFile(ai, bi)
+}
+
+// sourceRemovalPreflight reports whether the application policy allows removing
+// the source entry from its directory. On POSIX, unlinking needs write (and
+// execute) permission on the *directory*, which a writable file does not imply.
+// 0555-style directories are refused before any destination is created; ACLs,
+// sticky bits or NFS denials are not visible here and are caught by the real
+// os.Remove error after the write (see removeSourceEntry). Windows directory
+// mode bits are synthetic, so the check is skipped there.
+func sourceRemovalPreflight(path string) (bool, string) {
+	if runtime.GOOS == "windows" {
+		return true, ""
+	}
+	dir := filepath.Dir(path)
+	fi, err := os.Stat(dir)
+	if err != nil || !fi.IsDir() {
+		return false, "source_directory_unavailable"
+	}
+	if fi.Mode().Perm()&0o222 == 0 {
+		return false, "source_directory_not_writable"
+	}
+	return true, ""
+}
+
+// removeSourceEntry performs the source removal after the destination was
+// written and reports the real outcome. A source that already disappeared counts
+// as removed. The caller must not report success when this returns an error,
+// must not update the active document/recents, and must not attempt a
+// destructive rollback of the destination.
+func removeSourceEntry(oldAbs, newAbs string) (bool, error) {
+	if oldAbs == "" || oldAbs == newAbs {
+		return true, nil
+	}
+	if _, err := os.Stat(oldAbs); err != nil {
+		if os.IsNotExist(err) {
+			return true, nil
+		}
+		return false, err
+	}
+	if err := os.Remove(oldAbs); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func writeFailureStatus(err error) (int, string) {
+	// EROFS (read-only mount) is not covered by os.IsPermission; it is a write
+	// refusal, also when wrapped in *os.PathError. Generic I/O errors stay 500.
+	if os.IsPermission(err) || errors.Is(err, fs.ErrPermission) || isReadOnlyFilesystem(err) {
+		return http.StatusForbidden, "write_forbidden"
+	}
+	return http.StatusInternalServerError, "write_failed"
+}
+
+// apiErrorBody is the structured error returned by the write endpoints. `error`
+// is the machine code, `conflict` distinguishes 409 reasons (revision_mismatch,
+// file_missing, source_changed, source_missing, target_exists).
+type apiErrorBody struct {
+	Success  bool   `json:"success"`
+	Error    string `json:"error"`
+	Conflict string `json:"conflict,omitempty"`
+	Path     string `json:"path,omitempty"`
+	Revision string `json:"revision,omitempty"`
+	Message  string `json:"message,omitempty"`
+	// Partial marks an operation that had a side effect before failing: a rename
+	// whose destination was written but whose source could not be removed. There
+	// is no automatic rollback (documented); the client must not claim success.
+	Partial bool `json:"partial,omitempty"`
+}
+
+func writeJSON(w http.ResponseWriter, status int, v interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func writeAPIError(w http.ResponseWriter, status int, code, conflict, path, revision, message string) {
+	writeJSON(w, status, apiErrorBody{
+		Success:  false,
+		Error:    code,
+		Conflict: conflict,
+		Path:     path,
+		Revision: revision,
+		Message:  message,
+	})
 }
 
 // resolveForCompare resolves symlinks so two paths can be compared. A file that
@@ -626,12 +1327,10 @@ func openDefaultBrowser(u string) {
 
 func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Origin check (DNS-rebinding mitigation) + token check (real auth).
-		// Token is generated at startup and injected via /api/init.
-		if origin := r.Header.Get("Origin"); origin != "" && !isLocalOrigin(origin) {
-			http.Error(w, "Forbidden origin", http.StatusForbidden)
-			return
-		}
+		// The loopback Host/Origin boundary is enforced once for the whole stack
+		// by newHTTPHandler; here we only separate public assets/handshake from
+		// token-protected APIs. The token is generated at startup and injected
+		// via /api/init.
 		// Public endpoints: landing page, init handshake (issues token to local UI).
 		if r.URL.Path == "/" || r.URL.Path == "/api/init" || strings.HasPrefix(r.URL.Path, "/static/") {
 			next(w, r)
@@ -849,11 +1548,20 @@ func setupMux() *http.ServeMux {
 		curDir := activeDir
 		activeFileMu.RUnlock()
 
-		content := ""
+		// Content and revision come from the same snapshot read: a later
+		// /api/stat cannot attach a newer revision to this older text. A read
+		// failure is reported as such (503 snapshot_unstable, like /api/file):
+		// it is not an empty document. A genuinely missing file is a successful
+		// read with exists=false and no revision (the client must not adopt it as
+		// a clean, saveable snapshot).
+		snap := diskSnapshot{}
 		if curPath != "" {
-			if data, err := os.ReadFile(curPath); err == nil {
-				content = string(data)
+			loaded, err := readDiskSnapshot(curPath)
+			if err != nil {
+				writeAPIError(w, http.StatusServiceUnavailable, "snapshot_unstable", "", curPath, "", err.Error())
+				return
 			}
+			snap = loaded
 		}
 
 		recentsMu.Lock()
@@ -867,8 +1575,13 @@ func setupMux() *http.ServeMux {
 			ActiveFile:  curPath,
 			ActiveDir:   curDir,
 			DefaultDir:  defaultSaveDir(curDir),
-			Recents:     recentsCopy,
-			FileContent: content,
+			Recents:      recentsCopy,
+			FileContent:  string(snap.Content),
+			FileRevision: snap.Revision,
+			FileExists:   snap.Exists,
+		}
+		if snap.Exists {
+			resp.ReadOnly, resp.ReadOnlyReason = writeProtection(curPath, snap)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
@@ -892,15 +1605,14 @@ func setupMux() *http.ServeMux {
 			return
 		}
 
-		content, err := os.ReadFile(cleanPath)
+		snap, err := readDiskSnapshot(cleanPath)
 		if err != nil {
-			http.Error(w, "file not found", http.StatusNotFound)
+			writeAPIError(w, http.StatusServiceUnavailable, "snapshot_unstable", "", cleanPath, "", err.Error())
 			return
 		}
-
-		var modTime int64
-		if fi, err := os.Stat(cleanPath); err == nil {
-			modTime = fi.ModTime().UnixNano()
+		if !snap.Exists {
+			http.Error(w, "file not found", http.StatusNotFound)
+			return
 		}
 
 		activeFileMu.Lock()
@@ -909,18 +1621,24 @@ func setupMux() *http.ServeMux {
 		activeFileMu.Unlock()
 		addRecent(cleanPath)
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(FileResponse{
-			Path:     cleanPath,
-			Content:  string(content),
-			ModTime:  modTime,
-			ReadOnly: false,
+		readOnly, reason := writeProtection(cleanPath, snap)
+		writeJSON(w, http.StatusOK, FileResponse{
+			Path:           cleanPath,
+			Content:        string(snap.Content),
+			Revision:       snap.Revision,
+			ModTime:        snap.ModTime,
+			ReadOnly:       readOnly,
+			ReadOnlyReason: reason,
 		})
 	}))
 
-	// /api/stat is the cheap half of /api/file: the UI polls it to notice that the
-	// document changed on disk (another machine on a shared folder, a git
-	// checkout, an external editor) without re-reading it on every tick.
+	// /api/stat reports the reliable content revision without sending the file
+	// body. It deliberately reads and hashes the whole file on every call: a
+	// cache keyed only on mtime/size would miss changes that preserve both (an
+	// in-place rewrite within the filesystem timestamp granularity, a restored
+	// backup with the same size, a content swap via mmap). Cost: one read and one
+	// SHA-256 per poll per window (the UI polls only while the document is
+	// visible). mtime/size are still returned, as metadata only.
 	mux.HandleFunc("/api/stat", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		filePath := r.URL.Query().Get("path")
 		if filePath == "" {
@@ -932,16 +1650,20 @@ func setupMux() *http.ServeMux {
 			http.Error(w, "invalid path", http.StatusBadRequest)
 			return
 		}
-		fi, err := os.Stat(cleanPath)
+		snap, err := readDiskSnapshot(cleanPath)
 		if err != nil {
-			http.Error(w, "file not found", http.StatusNotFound)
+			writeAPIError(w, http.StatusServiceUnavailable, "snapshot_unstable", "", cleanPath, "", err.Error())
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"path":     cleanPath,
-			"mod_time": fi.ModTime().UnixNano(),
-			"size":     fi.Size(),
+		readOnly, reason := writeProtection(cleanPath, snap)
+		writeJSON(w, http.StatusOK, StatResponse{
+			Path:           cleanPath,
+			Exists:         snap.Exists,
+			Revision:       snap.Revision,
+			ModTime:        snap.ModTime,
+			Size:           snap.Size,
+			ReadOnly:       readOnly,
+			ReadOnlyReason: reason,
 		})
 	}))
 
@@ -974,21 +1696,76 @@ func setupMux() *http.ServeMux {
 			return
 		}
 
-		// Conflict detection: verify modification time if file exists
-		if fi, err := os.Stat(cleanPath); err == nil {
-			diskMod := fi.ModTime().UnixNano()
-			if req.ModTime > 0 && diskMod > req.ModTime {
-				// File changed externally on disk
-				http.Error(w, "conflict: file modified on disk", http.StatusConflict)
-				return
-			}
-		}
-
-		// Atomic write
-		if err := atomicWrite(cleanPath, []byte(req.Content)); err != nil {
-			http.Error(w, fmt.Sprintf("failed to save: %v", err), http.StatusInternalServerError)
+		// Revision precondition: equality of an opaque content fingerprint, never
+		// an order comparison of timestamps.
+		if req.ExpectedRevision != "" && !validDiskRevision(req.ExpectedRevision) {
+			writeAPIError(w, http.StatusBadRequest, "invalid_revision", "", cleanPath, "", "expected_revision is not a sha256 revision")
 			return
 		}
+
+		// Serialise the read-check-write sequence between requests of this
+		// process (two saves with the same baseline, save against rename). Other
+		// programs are not covered: the file can still change after the check and
+		// before atomicWrite replaces it (residual TOCTOU, documented in AUDIT).
+		diskWriteMu.Lock()
+		defer diskWriteMu.Unlock()
+
+		snap, err := readDiskSnapshot(cleanPath)
+		if err != nil {
+			writeAPIError(w, http.StatusServiceUnavailable, "snapshot_unstable", "", cleanPath, "", err.Error())
+			return
+		}
+
+		// Application read-only policy comes before conflict handling: `force`
+		// bypasses a content conflict, never the protection of the file. Atomic
+		// save would replace the inode without needing write access to it, so
+		// refusing here is what makes the read-only intent effective.
+		if readOnly, reason := writeProtection(cleanPath, snap); readOnly {
+			writeAPIError(w, http.StatusForbidden, "read_only", "", cleanPath, snap.Revision,
+				"the file is read-only ("+reason+")")
+			return
+		}
+
+		if !req.Force {
+			switch {
+			case req.ExpectedRevision == "":
+				// No baseline is not "force": it can only create a new file. A
+				// legacy client that sent only mod_time (0 included) now gets 428
+				// on an existing file instead of silently bypassing the check.
+				if snap.Exists {
+					writeAPIError(w, http.StatusPreconditionRequired, "revision_required", "", cleanPath, snap.Revision,
+						"an existing file needs expected_revision (or an explicit one-shot force)")
+					return
+				}
+			case !snap.Exists:
+				// The client knew this file: never recreate it silently.
+				writeAPIError(w, http.StatusConflict, "conflict", "file_missing", cleanPath, "",
+					"the file was deleted on disk and is not recreated automatically")
+				return
+			case snap.Revision != req.ExpectedRevision:
+				writeAPIError(w, http.StatusConflict, "conflict", "revision_mismatch", cleanPath, snap.Revision,
+					"the file changed on disk")
+				return
+			}
+		} else if req.ExpectedRevision != "" && !snap.Exists {
+			// Force overwrites a changed existing file, but it does not resurrect a
+			// file the client knew about and that disappeared.
+			writeAPIError(w, http.StatusConflict, "conflict", "file_missing", cleanPath, "",
+				"the file was deleted on disk; an explicit force does not recreate it")
+			return
+		}
+
+		// Atomic write. A permission/read-only-filesystem error discovered here is
+		// still a refusal (never a success): 403 write_forbidden, distinct from a
+		// content conflict.
+		if err := atomicWrite(cleanPath, []byte(req.Content)); err != nil {
+			status, code := writeFailureStatus(err)
+			writeAPIError(w, status, code, "", cleanPath, "", err.Error())
+			return
+		}
+		// Revision of the content that was actually written (atomicWrite replaces
+		// the file with exactly these bytes on success).
+		revision := contentRevision([]byte(req.Content))
 
 		var newModTime int64
 		if fi, err := os.Stat(cleanPath); err == nil {
@@ -1001,11 +1778,12 @@ func setupMux() *http.ServeMux {
 		activeFileMu.Unlock()
 		addRecent(cleanPath)
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(SaveResponse{
-			Success: true,
-			Path:    cleanPath,
-			ModTime: newModTime,
+		writeJSON(w, http.StatusOK, SaveResponse{
+			Success:  true,
+			Path:     cleanPath,
+			Revision: revision,
+			ModTime:  newModTime,
+			ReadOnly: false,
 		})
 	}))
 
@@ -1143,10 +1921,24 @@ func setupMux() *http.ServeMux {
 			OldPath   string `json:"old_path"`
 			NewPath   string `json:"new_path"`
 			Content   string `json:"content"`
-			Overwrite bool   `json:"overwrite"`
+			// SourcePath is the explicit copy source. It is set only by the
+			// Save As / copy flow (old_path empty) and is used exclusively to
+			// refuse a destination that aliases the source: it never authorises
+			// writing or removing the source, and the source content may differ
+			// from the buffer (or be gone) — the copy is written from the buffer.
+			SourcePath string `json:"source_path,omitempty"`
+			// ExpectedRevision is the source baseline. It is required whenever
+			// old_path is set, also when old_path == new_path; the destination
+			// `overwrite` flag never bypasses this check.
+			ExpectedRevision string `json:"expected_revision,omitempty"`
+			Overwrite        bool   `json:"overwrite,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid payload", http.StatusBadRequest)
+			return
+		}
+		if req.ExpectedRevision != "" && !validDiskRevision(req.ExpectedRevision) {
+			writeAPIError(w, http.StatusBadRequest, "invalid_revision", "", req.NewPath, "", "expected_revision is not a sha256 revision")
 			return
 		}
 
@@ -1162,10 +1954,10 @@ func setupMux() *http.ServeMux {
 			return
 		}
 
-		if err := os.MkdirAll(filepath.Dir(newAbs), 0o755); err != nil {
-			http.Error(w, "cannot create target folder: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
+		// A copy is Save As / Save a copy: old_path empty plus an explicit source
+		// context. It shares the destination-entry rule but not the removal rules
+		// of a rename.
+		copySource := req.OldPath == "" && strings.TrimSpace(req.SourcePath) != ""
 
 		oldAbs := ""
 		if req.OldPath != "" {
@@ -1183,23 +1975,160 @@ func setupMux() *http.ServeMux {
 			oldAbs = a
 		}
 
-		// Refuse to silently replace a different document that already exists.
+		// Serialise with saves and other renames of this process.
+		diskWriteMu.Lock()
+		defer diskWriteMu.Unlock()
+
+		// Copy flow (old_path empty + explicit source context): the destination
+		// must not identify the source. Refused before any effect; no fallback to
+		// save or rename. A same-path RENAME (old_path == new_path) is untouched.
+		// The identity is resolved inside the write section so it is ordered with
+		// the other process writes; it is a preflight, not a filesystem CAS.
+		if copySource {
+			alias, reason, err := copyDestinationAliasesSource(req.SourcePath, newAbs)
+			if err != nil {
+				writeAPIError(w, http.StatusServiceUnavailable, "snapshot_unstable", "", req.SourcePath, "",
+					"cannot verify the copy source: "+err.Error())
+				return
+			}
+			if alias {
+				writeJSON(w, http.StatusConflict, apiErrorBody{
+					Success:  false,
+					Error:    "conflict",
+					Conflict: "copy_same_source",
+					Path:     newAbs,
+					Message:  "the copy destination is the source itself (" + reason + "): choose another name or folder",
+				})
+				return
+			}
+			// A different final referent is not enough: the destination may be a
+			// symlink entry the source path traverses to reach its file. Replacing
+			// that entry would make the source unreadable (ENOTDIR), so it is
+			// refused before any effect, with or without overwrite.
+			replaces, linkReason, err := copyDestinationReplacesSourceLink(req.SourcePath, newAbs)
+			if err != nil {
+				writeAPIError(w, http.StatusServiceUnavailable, "snapshot_unstable", "", req.SourcePath, "",
+					"cannot verify the copy source link entries: "+err.Error())
+				return
+			}
+			if replaces {
+				writeJSON(w, http.StatusConflict, apiErrorBody{
+					Success:  false,
+					Error:    "conflict",
+					Conflict: "copy_same_source",
+					Path:     newAbs,
+					Message:  "the copy destination is a link entry needed to access the source (" + linkReason + "): choose another name or folder",
+				})
+				return
+			}
+		}
+
+		// The source revision is verified BEFORE creating the destination folder,
+		// writing the destination or removing the source, including when
+		// old_path == new_path. A missing or changed source is a distinct
+		// conflict: overwrite of the destination does not authorise losing
+		// external changes of the source.
+		if oldAbs != "" {
+			if req.ExpectedRevision == "" {
+				writeAPIError(w, http.StatusPreconditionRequired, "revision_required", "", oldAbs, "",
+					"renaming an existing document needs expected_revision")
+				return
+			}
+			srcSnap, err := readDiskSnapshot(oldAbs)
+			if err != nil {
+				writeAPIError(w, http.StatusServiceUnavailable, "snapshot_unstable", "", oldAbs, "", err.Error())
+				return
+			}
+			if !srcSnap.Exists {
+				writeAPIError(w, http.StatusConflict, "conflict", "source_missing", oldAbs, "",
+					"the source document was deleted on disk")
+				return
+			}
+			// A protected source is never moved/rewritten: `overwrite` is about the
+			// destination and cannot authorise losing the read-only intent, also for
+			// old_path == new_path.
+			if readOnly, reason := writeProtection(oldAbs, srcSnap); readOnly {
+				writeAPIError(w, http.StatusForbidden, "read_only", "", oldAbs, srcSnap.Revision,
+					"the source document is read-only ("+reason+")")
+				return
+			}
+			if srcSnap.Revision != req.ExpectedRevision {
+				writeAPIError(w, http.StatusConflict, "conflict", "source_changed", oldAbs, srcSnap.Revision,
+					"the source document changed on disk")
+				return
+			}
+		}
+
+		// A protected destination cannot be replaced by a rename/copy, with or
+		// without overwrite:true, and with an empty source (Save As / copy). The
+		// read-only refusal is a different case from "destination exists", so the
+		// UI never offers an overwrite confirmation that would bypass permissions.
+		if oldAbs != newAbs {
+			if readOnly, reason := pathReadOnly(newAbs); readOnly {
+				writeAPIError(w, http.StatusForbidden, "read_only", "", newAbs, "",
+					"the destination is read-only ("+reason+")")
+				return
+			}
+		}
+
+		// Removing the source needs write access to its directory, not only to the
+		// file. When that is determinably denied, refuse before creating the
+		// destination folder or writing anything.
+		if oldAbs != "" && oldAbs != newAbs {
+			if allowed, reason := sourceRemovalPreflight(oldAbs); !allowed {
+				writeAPIError(w, http.StatusForbidden, "write_forbidden", "", oldAbs, "",
+					"the source document cannot be removed from its directory ("+reason+")")
+				return
+			}
+		}
+
+		if err := os.MkdirAll(filepath.Dir(newAbs), 0o755); err != nil {
+			status, code := writeFailureStatus(err)
+			writeAPIError(w, status, code, "", newAbs, "", err.Error())
+			return
+		}
+
+		// Refuse to silently replace a different document that already exists. A
+		// copy also needs consent when the destination is an existing *entry* whose
+		// referent is missing (a dangling symlink): os.Stat would follow the link
+		// and report ENOENT, silently replacing the link itself. Lstat distinguishes
+		// entry existence from referent identity. The general rename/save policy is
+		// unchanged: only the explicit copy flow uses Lstat here.
 		if oldAbs != newAbs && !req.Overwrite {
-			if fi, err := os.Stat(newAbs); err == nil && !fi.IsDir() {
-				http.Error(w, "exists: a file with this name is already there", http.StatusConflict)
+			statEntry := os.Stat
+			if copySource {
+				statEntry = os.Lstat
+			}
+			if fi, err := statEntry(newAbs); err == nil && !fi.IsDir() {
+				writeAPIError(w, http.StatusConflict, "conflict", "target_exists", newAbs, "",
+					"a file with this name is already there")
 				return
 			}
 		}
 
 		if err := atomicWrite(newAbs, []byte(req.Content)); err != nil {
-			http.Error(w, "failed to save file: "+err.Error(), http.StatusInternalServerError)
+			status, code := writeFailureStatus(err)
+			writeAPIError(w, status, code, "", newAbs, "", err.Error())
 			return
 		}
 
-		// If renaming an existing file and path changed, delete the old file
+		// If renaming an existing file and path changed, delete the old file and
+		// check the outcome: a failed removal is not a completed rename. The
+		// destination is already written at this point, so the error reports the
+		// partial outcome explicitly; there is no automatic rollback (it could
+		// delete another process's work) and the source stays where it is.
 		if oldAbs != "" && oldAbs != newAbs {
-			if _, err := os.Stat(oldAbs); err == nil {
-				_ = os.Remove(oldAbs)
+			if removed, removeErr := removeSourceEntry(oldAbs, newAbs); !removed {
+				status, code := writeFailureStatus(removeErr)
+				writeJSON(w, status, apiErrorBody{
+					Success:  false,
+					Error:    code,
+					Path:     newAbs,
+					Revision: contentRevision([]byte(req.Content)),
+					Partial:  true,
+					Message:  "rename incomplete: destination written, source not removed: " + removeErr.Error(),
+				})
+				return
 			}
 		}
 
@@ -1214,11 +2143,12 @@ func setupMux() *http.ServeMux {
 		activeFileMu.Unlock()
 		addRecent(newAbs)
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":  true,
-			"path":     newAbs,
-			"mod_time": newMod,
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"success":   true,
+			"path":      newAbs,
+			"revision":  contentRevision([]byte(req.Content)),
+			"mod_time":  newMod,
+			"read_only": false,
 		})
 	}))
 
@@ -1432,6 +2362,9 @@ func main() {
 
 	actualPort := listener.Addr().(*net.TCPAddr).Port
 	primaryPort = actualPort
+	// One immutable boundary per listener, composed once with security headers
+	// and the routes. No handler is reachable without passing it.
+	handler := newHTTPHandler(mux, newLoopbackBoundary(actualPort))
 	appURL := fmt.Sprintf("http://127.0.0.1:%d", actualPort)
 	writeInstanceLock(actualPort)
 	defer removeInstanceLock()
@@ -1454,7 +2387,7 @@ func main() {
 	}
 
 	server := &http.Server{
-		Handler:           securityHeaders(mux),
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}

@@ -1,0 +1,49 @@
+name: Publish Linux release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Verify packages and publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; not modifying it."
+            exit 0
+          fi
+          version=${RELEASE_TAG#v}
+          notes="docs/releases/$RELEASE_TAG.md"
+          test -s "$notes"
+          title=$(head -n 1 "$notes")
+          title=${title#\# }
+          dest=$(mktemp -d)
+          trap 'rm -rf -- "$dest"' EXIT
+          files=("typecraft_${version}-1_amd64.deb" "typecraft-${version}-1.x86_64.rpm" "TypeCraft-x86_64.AppImage" "SHA256SUMS")
+          for file in "${files[@]}"; do
+            gh api -H 'Accept: application/vnd.github.raw+json' \
+              "repos/$GITHUB_REPOSITORY/contents/$RELEASE_TAG/$file?ref=downloads" > "$dest/$file"
+            test -s "$dest/$file"
+          done
+          (cd "$dest" && sha256sum --strict -c SHA256SUMS)
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "$title" --notes-file "$notes" "${files[@]/#/$dest/}"

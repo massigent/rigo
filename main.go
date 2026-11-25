@@ -1225,8 +1225,9 @@ func detectDefaultLinuxBrowser() string {
 }
 
 func openDesktopWindow(targetURL string, forceApp bool) {
-	time.Sleep(200 * time.Millisecond)
-
+	// No artificial delay here: both call sites start this goroutine only after
+	// net.Listen has bound the loopback port, so the browser can connect
+	// immediately (the old fixed 200ms sleep just slowed every launch).
 	if !forceApp {
 		openDefaultBrowser(targetURL)
 		return

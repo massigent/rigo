@@ -34,7 +34,7 @@ import (
 var embeddedWebFS embed.FS
 
 var (
-	version      = "1.0.4"
+	version      = "1.0.5"
 	activeFileMu sync.RWMutex
 	activePath   string
 	activeDir    string

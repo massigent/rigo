@@ -4,7 +4,7 @@
 
 Write in plain Markdown, then switch between source, rendered preview, and a synchronized split view. Typewriter scrolling and sentence or paragraph focus keep the current passage in view. Your documents stay in ordinary files on disk; no account is required. A single Go executable serves the interface in your browser.
 
-[Download for Linux, Windows and macOS](https://github.com/massigent/typecraft/releases/tag/v1.0.4) · [Release notes](docs/releases/v1.0.4.md) · [Italiano](README.it.md)
+[Download for Linux, Windows and macOS](https://github.com/massigent/typecraft/releases/tag/v1.0.5) · [Release notes](docs/releases/v1.0.5.md) · [Italiano](README.it.md)
 
 ---
 
@@ -110,10 +110,10 @@ Failed builds remove their staging directory and partial AppImage, leaving any p
 
 ```bash
 # Ubuntu
-sudo apt install ./dist/typecraft_1.0.4-1_amd64.deb
+sudo apt install ./dist/typecraft_1.0.5-1_amd64.deb
 
 # Fedora
-sudo dnf install ./dist/typecraft-1.0.4-1.x86_64.rpm
+sudo dnf install ./dist/typecraft-1.0.5-1.x86_64.rpm
 
 # AppImage (no installation required)
 chmod +x dist/TypeCraft-x86_64.AppImage
@@ -124,7 +124,7 @@ On a system without FUSE, launch the AppImage with `APPIMAGE_EXTRACT_AND_RUN=1`.
 
 ### Windows and macOS packages
 
-Download the Windows x64 setup from [Releases](https://github.com/massigent/typecraft/releases/tag/v1.0.4) and run it from your Windows account. On macOS, download the ZIP for Apple Silicon (`arm64`) or Intel (`amd64`), extract it, and move `TypeCraft.app` to Applications. These builds are not signed with a distribution certificate or notarized.
+Download the Windows x64 setup from [Releases](https://github.com/massigent/typecraft/releases/tag/v1.0.5) and run it from your Windows account. On macOS, download the ZIP for Apple Silicon (`arm64`) or Intel (`amd64`), extract it, and move `TypeCraft.app` to Applications. These builds are not signed with a distribution certificate or notarized.
 
 To cross-build on Linux, run `make windows-installer` (requires NSIS and `icotool`) or `make macos-packages` (requires Python 3 and `png2icns`). Run `sh tests/desktop-packaging-smoke.sh` after both builds to inspect the outputs with 7-Zip and Python.
 
@@ -163,6 +163,18 @@ A review pass against real iA Writer and Typora builds fixed the following:
 **Engineering**
 - Server gains `ReadHeaderTimeout`/`IdleTimeout`, security headers and `/api/events`, `/api/asset`, `/api/internal/open`.
 - 6 new regression tests (`go test -race`).
+
+---
+
+## 🔧 What changed in 1.0.5
+
+A usability defect fix reported against 1.0.4. Full detail in `docs/releases/v1.0.5.md`.
+
+- **Double click selects the word again**: with typewriter scrolling enabled, every single click recentered
+  the view, so the text moved under the cursor between the two clicks of a word selection and the second
+  click landed a line above the intended word. The click recentering is now deferred by the double-click
+  window and cancelled by any new mousedown; a click with `detail > 1` (second/third click of a selection)
+  never recenters. Keyboard-driven recentering is unchanged.
 
 ---
 

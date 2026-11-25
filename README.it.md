@@ -4,7 +4,7 @@
 
 Scrivi in Markdown e passa dal sorgente all’anteprima o alla vista affiancata. Lo scorrimento a macchina da scrivere e la messa a fuoco per frase o paragrafo ti aiutano a restare sul testo. I documenti restano normali file sul disco: non serve un account. Un unico eseguibile Go serve l’interfaccia nel browser.
 
-[Scarica per Linux, Windows e macOS](https://github.com/massigent/typecraft/releases/tag/v1.0.3) · [Note di rilascio](docs/releases/v1.0.3.md) · [English](README.md)
+[Scarica per Linux, Windows e macOS](https://github.com/massigent/typecraft/releases/tag/v1.0.4) · [Note di rilascio](docs/releases/v1.0.4.md) · [English](README.md)
 
 ---
 
@@ -116,10 +116,10 @@ In caso di errore la staging e l'AppImage parziale vengono rimosse, lasciando in
 
 ```bash
 # Ubuntu
-sudo apt install ./dist/typecraft_1.0.3-1_amd64.deb
+sudo apt install ./dist/typecraft_1.0.4-1_amd64.deb
 
 # Fedora
-sudo dnf install ./dist/typecraft-1.0.3-1.x86_64.rpm
+sudo dnf install ./dist/typecraft-1.0.4-1.x86_64.rpm
 
 # AppImage (non richiede installazione)
 chmod +x dist/TypeCraft-x86_64.AppImage
@@ -130,7 +130,7 @@ Su un sistema senza FUSE, avvia l'AppImage con `APPIMAGE_EXTRACT_AND_RUN=1`. Dop
 
 ### Pacchetti Windows e macOS
 
-Scarica il setup Windows x64 dalla [release](https://github.com/massigent/typecraft/releases/tag/v1.0.3) ed eseguilo dal tuo account. Su macOS, scarica lo ZIP per Apple Silicon (`arm64`) o Intel (`amd64`), estrailo e sposta `TypeCraft.app` in Applicazioni. Queste build non hanno una firma di distribuzione; le app macOS non sono notarizzate.
+Scarica il setup Windows x64 dalla [release](https://github.com/massigent/typecraft/releases/tag/v1.0.4) ed eseguilo dal tuo account. Su macOS, scarica lo ZIP per Apple Silicon (`arm64`) o Intel (`amd64`), estrailo e sposta `TypeCraft.app` in Applicazioni. Queste build non hanno una firma di distribuzione; le app macOS non sono notarizzate.
 
 Per compilare da Linux usa `make windows-installer` (richiede NSIS e `icotool`) e `make macos-packages` (richiede Python 3 e `png2icns`). Dopo entrambe le build, `sh tests/desktop-packaging-smoke.sh` verifica gli artefatti con 7-Zip e Python.
 
@@ -173,6 +173,36 @@ Revisione condotta confrontando il codice con build reali di iA Writer e Typora:
 - 6 nuovi test di regressione (`go test -race`).
 
 ---
+
+## 🔧 Novità della 1.0.4
+
+Seconda revisione di irrobustimento sopra la 1.0.3. Dettaglio completo in `docs/releases/v1.0.4.md`.
+
+**Sicurezza**
+- **Nessun token sulla riga di comando del browser**: la finestra si apriva su un URL con il token di
+  sessione, leggibile da altri utenti locali via `/proc/<pid>/cmdline`. Ora la pagina riceve il token
+  dall'handshake `/api/init` (inclusa la risposta d'errore all'avvio) e ogni fetch si autentica con
+  l'header `X-Typecraft-Token`; la forma in query resta solo per `EventSource` e `<img>`, che non
+  possono impostare header.
+- **Corpi delle richieste limitati**: `/api/save`, `/api/rename` e `/api/mkdir` limitano il payload JSON
+  a 32 MiB (`413` oltre), così un client impazzito non può riempire la memoria.
+- **Segreti fail-hard**: se `crypto/rand` non è disponibile l'app rifiuta di partire invece di cadere su
+  un token derivato dall'orologio (prevedibile).
+- **Confronto constant-time del segreto di controllo** del canale single-instance.
+
+**Correttezza ed esperienza d'uso**
+- **«Salva con nome» preferisce `~/Documents` su ogni localizzazione**, non solo sulle home italiane.
+- **`recents.json` è scritto atomicamente**, come i salvataggi dei documenti: un crash non può troncarlo.
+- **`/api/init` riporta il vero sistema operativo** (il campo esisteva ma non era mai valorizzato).
+- **File browser su Windows**: breadcrumb e label workspace dividono su entrambi i separatori e un
+  drive (`C:`) è un breadcrumb cliccabile.
+- **Le ricariche esterne mantengono caret e viewport**, invece di saltare a fine file.
+- **Rimosso il codice morto**: l'endpoint `/api/export/html` mai usato, un modal irraggiungibile e un
+  case di formattazione non referenziato.
+
+**Processo**
+- **CI su ogni push e pull request**: controllo `gofmt`, `go vet`, test Go, i 146 test frontend jsdom e
+  la build ora girano prima del tag di release (`release.yml` scattava solo sui tag).
 
 ## 🔧 Novità della 1.0.3
 

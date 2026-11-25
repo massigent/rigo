@@ -4,7 +4,7 @@
 
 Write in plain Markdown, then switch between source, rendered preview, and a synchronized split view. Typewriter scrolling and sentence or paragraph focus keep the current passage in view. Your documents stay in ordinary files on disk; no account is required. A single Go executable serves the interface in your browser.
 
-[Download for Linux, Windows and macOS](https://github.com/massigent/typecraft/releases/tag/v1.0.3) · [Release notes](docs/releases/v1.0.3.md) · [Italiano](README.it.md)
+[Download for Linux, Windows and macOS](https://github.com/massigent/typecraft/releases/tag/v1.0.4) · [Release notes](docs/releases/v1.0.4.md) · [Italiano](README.it.md)
 
 ---
 
@@ -110,10 +110,10 @@ Failed builds remove their staging directory and partial AppImage, leaving any p
 
 ```bash
 # Ubuntu
-sudo apt install ./dist/typecraft_1.0.3-1_amd64.deb
+sudo apt install ./dist/typecraft_1.0.4-1_amd64.deb
 
 # Fedora
-sudo dnf install ./dist/typecraft-1.0.3-1.x86_64.rpm
+sudo dnf install ./dist/typecraft-1.0.4-1.x86_64.rpm
 
 # AppImage (no installation required)
 chmod +x dist/TypeCraft-x86_64.AppImage
@@ -124,7 +124,7 @@ On a system without FUSE, launch the AppImage with `APPIMAGE_EXTRACT_AND_RUN=1`.
 
 ### Windows and macOS packages
 
-Download the Windows x64 setup from [Releases](https://github.com/massigent/typecraft/releases/tag/v1.0.3) and run it from your Windows account. On macOS, download the ZIP for Apple Silicon (`arm64`) or Intel (`amd64`), extract it, and move `TypeCraft.app` to Applications. These builds are not signed with a distribution certificate or notarized.
+Download the Windows x64 setup from [Releases](https://github.com/massigent/typecraft/releases/tag/v1.0.4) and run it from your Windows account. On macOS, download the ZIP for Apple Silicon (`arm64`) or Intel (`amd64`), extract it, and move `TypeCraft.app` to Applications. These builds are not signed with a distribution certificate or notarized.
 
 To cross-build on Linux, run `make windows-installer` (requires NSIS and `icotool`) or `make macos-packages` (requires Python 3 and `png2icns`). Run `sh tests/desktop-packaging-smoke.sh` after both builds to inspect the outputs with 7-Zip and Python.
 
@@ -163,6 +163,39 @@ A review pass against real iA Writer and Typora builds fixed the following:
 **Engineering**
 - Server gains `ReadHeaderTimeout`/`IdleTimeout`, security headers and `/api/events`, `/api/asset`, `/api/internal/open`.
 - 6 new regression tests (`go test -race`).
+
+---
+
+## 🔧 What changed in 1.0.4
+
+A second hardening review on top of 1.0.3. Full detail in `docs/releases/v1.0.4.md`.
+
+**Security**
+- **No token on the browser command line**: the app window used to open at a URL carrying the session
+  token, readable by other local users through `/proc/<pid>/cmdline`. The page now receives the token
+  from the `/api/init` handshake (including the startup-error response), and every fetch authenticates
+  with the `X-Typecraft-Token` header; the query string form remains only for `EventSource` and
+  `<img>`, which cannot set headers.
+- **Bounded request bodies**: `/api/save`, `/api/rename` and `/api/mkdir` cap their JSON payloads at
+  32 MiB (`413` beyond), so a runaway client cannot buffer an unbounded document in memory.
+- **Fail-hard secrets**: if `crypto/rand` is unavailable the app refuses to start instead of falling
+  back to a timestamp-derived (predictable) token.
+- **Constant-time control secret**: the single-instance channel compares its secret like the UI
+  token.
+
+**Correctness and UX**
+- **"Save as" prefers `~/Documents` on every locale**, not only on Italian homes.
+- **`recents.json` is written atomically**, like a document save, so a crash cannot truncate it.
+- **`/api/init` reports the real OS** (the field existed but was never set).
+- **Windows file browser**: breadcrumbs and the workspace label split on both path separators, and a
+  drive (`C:`) is a clickable root crumb.
+- **External reloads keep the caret and viewport in place** instead of jumping to the end of the file.
+- **Dead code removed**: the unused `/api/export/html` endpoint, an unreachable modal and an unused
+  formatting case.
+
+**Process**
+- **CI on every push and pull request**: `gofmt` check, `go vet`, Go unit tests, the 146 jsdom
+  frontend tests and a build now run before a release is cut (`release.yml` only fired on tags).
 
 ---
 

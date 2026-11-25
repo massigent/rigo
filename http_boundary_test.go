@@ -37,35 +37,35 @@ func TestHostAuthorityPolicy(t *testing.T) {
 
 	blocked := []string{
 		"",
-		"attacker.example:43210",       // DNS-rebinding hostname
-		"127.0.0.1.evil.com:43210",     // lookalike
-		"localhost.evil.com:43210",     // lookalike
-		"127.0.0.1:43211",              // wrong port
-		"127.0.0.1",                    // port omitted on a non-default port
-		"127.0.0.1:",                   // empty port
-		"127.0.0.1:043210",             // non-canonical port
-		"127.0.0.1:+43210",             // signed port
-		"127.0.0.1:43210:0",            // ambiguous authority
-		"user@127.0.0.1:43210",         // userinfo
-		"http://127.0.0.1:43210",       // scheme in authority
-		"127.0.0.1:43210/path",         // path
-		"127.0.0.1:43210?x=1",          // query
-		"127.0.0.1:43210#frag",         // fragment
-		"[::1]:43210",                  // IPv6 is not served by this listener
+		"attacker.example:43210",   // DNS-rebinding hostname
+		"127.0.0.1.evil.com:43210", // lookalike
+		"localhost.evil.com:43210", // lookalike
+		"127.0.0.1:43211",          // wrong port
+		"127.0.0.1",                // port omitted on a non-default port
+		"127.0.0.1:",               // empty port
+		"127.0.0.1:043210",         // non-canonical port
+		"127.0.0.1:+43210",         // signed port
+		"127.0.0.1:43210:0",        // ambiguous authority
+		"user@127.0.0.1:43210",     // userinfo
+		"http://127.0.0.1:43210",   // scheme in authority
+		"127.0.0.1:43210/path",     // path
+		"127.0.0.1:43210?x=1",      // query
+		"127.0.0.1:43210#frag",     // fragment
+		"[::1]:43210",              // IPv6 is not served by this listener
 		"[::1]",
-		"[::ffff:127.0.0.1]:43210",     // IPv4-mapped IPv6 (dotted form)
-		"[::ffff:7f00:1]:43210",        // IPv4-mapped IPv6 (hex form)
-		"[::FFFF:7F00:1]:43210",        // ... uppercase hex
+		"[::ffff:127.0.0.1]:43210", // IPv4-mapped IPv6 (dotted form)
+		"[::ffff:7f00:1]:43210",    // IPv4-mapped IPv6 (hex form)
+		"[::FFFF:7F00:1]:43210",    // ... uppercase hex
 		"[::ffff:127.0.0.1]",
-		"0.0.0.0:43210",                // non-loopback
-		"192.168.1.10:43210",           // non-loopback
-		"localhost.:43210",             // trailing dot is not the allowed form
-		" 127.0.0.1:43210",             // whitespace
+		"0.0.0.0:43210",      // non-loopback
+		"192.168.1.10:43210", // non-loopback
+		"localhost.:43210",   // trailing dot is not the allowed form
+		" 127.0.0.1:43210",   // whitespace
 		"127.0.0.1:43210 ",
-		"127.0.0.1:65536",              // out of range
-		"[127.0.0.1]:43210",            // brackets around IPv4
-		"127.0.0.1:43210,127.0.0.1",    // multiple authorities
-		"127.0.0.1:43210\\@evil.test",  // ambiguous parse
+		"127.0.0.1:65536",             // out of range
+		"[127.0.0.1]:43210",           // brackets around IPv4
+		"127.0.0.1:43210,127.0.0.1",   // multiple authorities
+		"127.0.0.1:43210\\@evil.test", // ambiguous parse
 	}
 	for _, host := range blocked {
 		if b.hostAllowed(host) {

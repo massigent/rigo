@@ -56,12 +56,6 @@
   const actionsMenu = document.getElementById("actionsMenu");
 
   // Modals
-  const appModal = document.getElementById("appModal");
-  const modalTitle = document.getElementById("modalTitle");
-  const modalDescription = document.getElementById("modalDescription");
-  const modalInput = document.getElementById("modalInput");
-  const modalBtnCancel = document.getElementById("modalBtnCancel");
-  const modalBtnConfirm = document.getElementById("modalBtnConfirm");
   const statsModal = document.getElementById("statsModal");
   const statsPill = document.getElementById("statsPill");
   const statsModalClose = document.getElementById("statsModalClose");
@@ -297,13 +291,24 @@
     return h;
   }
 
+  // Tokenised URL for the transports that cannot set headers (EventSource and
+  // <img> elements). Plain fetches authenticate with the header instead, so the
+  // token never lands in URLs, browser history or server logs.
   function apiUrl(p) {
     if (!state.appToken) return p;
     const sep = p.includes("?") ? "&" : "?";
     return p + sep + "token=" + encodeURIComponent(state.appToken);
   }
 
-  // Exposed for the preview engine (local images need the tokenised URL).
+  // GET-style fetch with header authentication.
+  function apiGet(path) {
+    const h = {};
+    if (state.appToken) h["X-Typecraft-Token"] = state.appToken;
+    return fetch(path, { headers: h });
+  }
+
+  // Exposed for the preview engine (local images need the tokenised URL:
+  // <img> cannot set headers, unlike every fetch call).
   window.tcApiUrl = apiUrl;
 
   function escapeHtml(s) {
@@ -334,7 +339,7 @@
     // answer cannot silently replace text typed while it was loading.
     const boot = captureContext();
     try {
-      const res = await fetch(apiUrl("/api/init"));
+      const res = await fetch("/api/init");
       if (res.ok) {
         const data = await res.json();
         // Harmless global metadata: not tied to the document on screen.
@@ -398,7 +403,13 @@
           }
         }
       } else {
-        // A read failure (503 snapshot_unstable) is not an empty document.
+        // A read failure (503 snapshot_unstable) is not an empty document. The
+        // handshake still delivers the session token with the error, so the UI
+        // keeps its credentials (the launcher URL no longer carries them).
+        const errData = await res.json().catch(() => null);
+        if (errData && typeof errData.token === "string" && errData.token) {
+          state.appToken = errData.token;
+        }
         const current = bootDocumentCurrent(boot);
         const untouched = current && bootTextUntouched(boot);
         if (untouched) {
@@ -877,7 +888,6 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
       }
       closeFsModal();
       closeTableModal();
-      appModal?.classList.add("hidden");
       statsModal?.classList.add("hidden");
     }
   }
@@ -1059,15 +1069,6 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
         replaceRange(start, end, replacement, newCursorStart, newCursorEnd);
         return;
 
-      case "hr":
-        const beforeChar = start > 0 ? val[start - 1] : "\n";
-        const lead = (beforeChar === "\n") ? "" : "\n\n";
-        replacement = lead + "---\n\n";
-        newCursorStart = start + replacement.length;
-        newCursorEnd = newCursorStart;
-        replaceRange(start, end, replacement, newCursorStart, newCursorEnd);
-        return;
-
       case "table":
         openTableModal();
         return;
@@ -1102,7 +1103,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
   function insertMarkdownTable() {
     if (state.readOnly) return;
     const cols = Math.max(1, Math.min(10, parseInt(tableColsInput?.value, 10) || 3));
-    const rows = Math.max(1, Math.min(30, parseInt(tableRowsInput?.value, 10) || 3));
+    const rows = Math.max(1, Math.min(20, parseInt(tableRowsInput?.value, 10) || 3));
 
     let header = "|";
     let sep = "|";
@@ -1423,7 +1424,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
 
     let outcome = "error";
     try {
-      const res = await fetch(apiUrl("/api/save"), {
+      const res = await fetch("/api/save", {
         method: "POST",
         headers: apiHeaders(),
         body: JSON.stringify({
@@ -1593,7 +1594,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     const statCtx = captureContext();
     let stat;
     try {
-      const res = await fetch(apiUrl("/api/stat?path=" + encodeURIComponent(statCtx.path)));
+      const res = await apiGet("/api/stat?path=" + encodeURIComponent(statCtx.path));
       if (!res.ok) return;
       stat = await res.json();
     } catch (_) {
@@ -1638,7 +1639,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     const fileCtx = captureContext();
     let data;
     try {
-      const fileRes = await fetch(apiUrl("/api/file?path=" + encodeURIComponent(fileCtx.path)));
+      const fileRes = await apiGet("/api/file?path=" + encodeURIComponent(fileCtx.path));
       if (!fileRes.ok) return;
       data = await fileRes.json();
     } catch (_) {
@@ -1665,7 +1666,17 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
 
     // The reload keeps the same session but moves the revision counters with
     // the new text, so an older in-flight save cannot claim it as persisted.
+    // The caret and the viewport stay where they were: an external edit that
+    // does not touch this passage must not throw the writer to the end.
+    const prevStart = editor.selectionStart;
+    const prevEnd = editor.selectionEnd;
+    const prevScroll = editor.scrollTop;
     editor.value = content;
+    try {
+      const max = editor.value.length;
+      editor.setSelectionRange(Math.min(prevStart, max), Math.min(prevEnd, max));
+    } catch (_) {}
+    editor.scrollTop = prevScroll;
     state.diskRevision = revision;
     state.bufferRevision += 1;
     applyReadOnly(reloadReadOnly, data.read_only_reason);
@@ -1687,7 +1698,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     const start = captureContext();
     let data;
     try {
-      const res = await fetch(apiUrl(`/api/file?path=${encodeURIComponent(filePath)}`));
+      const res = await apiGet(`/api/file?path=${encodeURIComponent(filePath)}`);
       if (!res.ok) {
         if (seq === state.openSeq && sameDocument(start)) {
           alert("Impossibile aprire il file specificato.");
@@ -1853,7 +1864,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
       url += "?path=" + encodeURIComponent(path);
     }
     try {
-      const res = await fetch(apiUrl(url));
+      const res = await apiGet(url);
       if (!res.ok) {
         const err = await res.text();
         alert("Impossibile aprire la cartella: " + err);
@@ -1888,7 +1899,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     fsBreadcrumbs.innerHTML = "";
     if (!absPath) return;
 
-    const parts = absPath.split("/").filter(Boolean);
+    const parts = absPath.split(/[\\/]+/).filter(Boolean);
     if (!parts.length) {
       const rootSpan = document.createElement("b");
       rootSpan.textContent = "/";
@@ -1896,6 +1907,8 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
       return;
     }
 
+    // Windows drive ("C:") is its own root crumb; POSIX keeps the "/" root.
+    const isDrive = (s) => /^[a-zA-Z]:$/.test(s || "");
     if (absPath.startsWith("/")) {
       const rootBtn = document.createElement("button");
       rootBtn.type = "button";
@@ -1911,6 +1924,22 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
         sep.className = "fs-crumb-sep";
         sep.textContent = " / ";
         fsBreadcrumbs.appendChild(sep);
+      }
+      if (isDrive(part)) {
+        const subPath = part + "/";
+        if (idx === parts.length - 1) {
+          const cur = document.createElement("b");
+          cur.textContent = part;
+          fsBreadcrumbs.appendChild(cur);
+        } else {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "fs-crumb-btn";
+          btn.textContent = part;
+          btn.addEventListener("click", () => fsBrowse(subPath));
+          fsBreadcrumbs.appendChild(btn);
+        }
+        return;
       }
       const subPath = (absPath.startsWith("/") ? "/" : "") + parts.slice(0, idx + 1).join("/");
       if (idx === parts.length - 1) {
@@ -2075,7 +2104,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
   }
 
   function postRenameBody(body) {
-    return fetch(apiUrl("/api/rename"), {
+    return fetch("/api/rename", {
       method: "POST",
       headers: apiHeaders(),
       body: JSON.stringify(body),
@@ -2326,7 +2355,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     }
 
     try {
-      const res = await fetch(apiUrl("/api/mkdir"), {
+      const res = await fetch("/api/mkdir", {
         method: "POST",
         headers: apiHeaders(),
         body: JSON.stringify({
@@ -2349,7 +2378,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
 
   async function refreshRecents() {
     try {
-      const res = await fetch(apiUrl("/api/init"));
+      const res = await apiGet("/api/init");
       if (res.ok) {
         const data = await res.json();
         if (data.recents) renderRecents(data.recents);
@@ -2375,44 +2404,6 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
   }
 
   // ------------------------------------------------------------- Modals & Dialogs
-  function showModal(title, desc, initialVal, onConfirm) {
-    modalTitle.textContent = title;
-    modalDescription.textContent = desc;
-    modalInput.value = initialVal;
-    appModal.classList.remove("hidden");
-    modalInput.focus();
-    modalInput.select();
-
-    const confirmHandler = () => {
-      const val = modalInput.value.trim();
-      if (val) {
-        appModal.classList.add("hidden");
-        cleanup();
-        onConfirm(val);
-      }
-    };
-
-    const cancelHandler = () => {
-      appModal.classList.add("hidden");
-      cleanup();
-    };
-
-    const keyHandler = (e) => {
-      if (e.key === "Enter") confirmHandler();
-      if (e.key === "Escape") cancelHandler();
-    };
-
-    function cleanup() {
-      modalBtnConfirm.removeEventListener("click", confirmHandler);
-      modalBtnCancel.removeEventListener("click", cancelHandler);
-      modalInput.removeEventListener("keydown", keyHandler);
-    }
-
-    modalBtnConfirm.addEventListener("click", confirmHandler);
-    modalBtnCancel.addEventListener("click", cancelHandler);
-    modalInput.addEventListener("keydown", keyHandler);
-  }
-
   function showStatsModal() {
     updateWordCountAndStats();
     statsModal.classList.remove("hidden");
@@ -2484,10 +2475,10 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
 
   async function loadWorkspace(dir) {
     try {
-      const res = await fetch(apiUrl(`/api/workspace?path=${encodeURIComponent(dir)}`));
+      const res = await apiGet(`/api/workspace?path=${encodeURIComponent(dir)}`);
       if (res.ok) {
         const data = await res.json();
-        document.getElementById("workspaceRoot").textContent = String(data.root || "Workspace").split("/").pop() || "Workspace";
+        document.getElementById("workspaceRoot").textContent = String(data.root || "Workspace").split(/[\\/]+/).filter(Boolean).pop() || "Workspace";
         renderFileTree(data.tree, fileTree);
       }
     } catch (e) {
@@ -2677,8 +2668,6 @@ ${rendered}
   }
 
   function setupModals() {
-    modalBtnCancel?.addEventListener("click", () => appModal.classList.add("hidden"));
-
     // File System modal listeners
     btnFsClose?.addEventListener("click", closeFsModal);
     btnFsCancel?.addEventListener("click", closeFsModal);

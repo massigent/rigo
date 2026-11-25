@@ -3,7 +3,7 @@
 
 GO ?= $(shell which go 2>/dev/null || echo $(HOME)/.local/go/bin/go)
 APP_NAME := typecraft
-VERSION := 1.0.3
+VERSION := 1.0.4
 DIST_DIR ?= dist
 
 # Override with a path to the executable if appimagetool is not on PATH.

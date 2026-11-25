@@ -34,7 +34,7 @@ import (
 var embeddedWebFS embed.FS
 
 var (
-	version      = "1.0.3"
+	version      = "1.0.4"
 	activeFileMu sync.RWMutex
 	activePath   string
 	activeDir    string
@@ -82,18 +82,18 @@ func primaryURL() string {
 }
 
 type InitResponse struct {
-	Version     string   `json:"version"`
-	Token       string   `json:"token"`
-	ActiveFile  string   `json:"active_file"`
-	ActiveDir   string   `json:"active_dir"`
-	DefaultDir  string   `json:"default_dir"`
-	FileContent string   `json:"file_content"`
+	Version     string `json:"version"`
+	Token       string `json:"token"`
+	ActiveFile  string `json:"active_file"`
+	ActiveDir   string `json:"active_dir"`
+	DefaultDir  string `json:"default_dir"`
+	FileContent string `json:"file_content"`
 	// FileRevision describes exactly FileContent: both come from the same
 	// snapshot read (see readDiskSnapshot). Empty only when the file is missing.
 	FileRevision string `json:"file_revision"`
 	// FileExists distinguishes "the active file is really empty" (true, with a
 	// revision over the empty bytes) from "the active file is gone" (false).
-	FileExists bool     `json:"file_exists"`
+	FileExists bool `json:"file_exists"`
 	// ReadOnly is the application write policy for the active file; it is not
 	// part of the content revision. ReadOnlyReason is advisory metadata.
 	ReadOnly       bool     `json:"read_only"`
@@ -158,10 +158,12 @@ type FileNode struct {
 
 func randomToken() string {
 	b := make([]byte, 16)
-	if _, err := rand.Read(b); err == nil {
-		return hex.EncodeToString(b)
+	// A local secret must never degrade to a predictable value: if the system
+	// CSPRNG is unavailable there is no safe fallback, so fail hard.
+	if _, err := rand.Read(b); err != nil {
+		panic("typecraft: crypto/rand unavailable: " + err.Error())
 	}
-	return fmt.Sprintf("tk_%d", time.Now().UnixNano())
+	return hex.EncodeToString(b)
 }
 
 func initSecurityToken() {
@@ -178,9 +180,11 @@ func getHomeDir() string {
 
 func getDefaultSaveDir() string {
 	if h, err := os.UserHomeDir(); err == nil {
-		doc := filepath.Join(h, "Documenti")
-		if st, err := os.Stat(doc); err == nil && st.IsDir() {
-			return doc
+		for _, cand := range []string{"Documents", "Documenti"} {
+			doc := filepath.Join(h, cand)
+			if st, err := os.Stat(doc); err == nil && st.IsDir() {
+				return doc
+			}
 		}
 		return h
 	}
@@ -251,7 +255,9 @@ func tokenEqual(got, want string) bool {
 }
 
 func checkToken(r *http.Request) bool {
-	// Token via header (fetch) or query (?token= for window.open / img).
+	// Token via header (fetch) or query (?token= for EventSource and <img>,
+	// which cannot set headers). The launched browser URL itself carries no
+	// token: the page receives it through the /api/init handshake.
 	if tokenEqual(r.Header.Get("X-Typecraft-Token"), appToken) {
 		return true
 	}
@@ -496,7 +502,9 @@ func addRecent(p string) {
 
 	data, err := json.MarshalIndent(recentsList, "", "  ")
 	if err == nil {
-		_ = os.WriteFile(recentsPath, data, 0o644)
+		// Same durability as a document save: a crash in the middle of the write
+		// must not leave a truncated recents.json behind.
+		_ = atomicWrite(recentsPath, data)
 	}
 }
 
@@ -1216,13 +1224,8 @@ func detectDefaultLinuxBrowser() string {
 	return ""
 }
 
-func openDesktopWindow(targetURL string, forceApp bool, token string) {
+func openDesktopWindow(targetURL string, forceApp bool) {
 	time.Sleep(200 * time.Millisecond)
-	sep := "?"
-	if strings.Contains(targetURL, "?") {
-		sep = "&"
-	}
-	targetURL = targetURL + sep + "token=" + token
 
 	if !forceApp {
 		openDefaultBrowser(targetURL)
@@ -1344,8 +1347,9 @@ func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// securityHeaders hardens the local UI: the app never loads remote code, and a
-// document cannot leak the ?token= of the window through the Referer header.
+// securityHeaders hardens the local UI: the app never loads remote code, and no
+// request leaks the app origin (or a tokenised asset URL) through the Referer
+// header. The window URL itself carries no token anymore (see openDesktopWindow).
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
@@ -1494,7 +1498,7 @@ func handleInternalOpen(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if controlToken == "" || r.Header.Get("X-Typecraft-Control") != controlToken {
+	if controlToken == "" || !tokenEqual(r.Header.Get("X-Typecraft-Control"), controlToken) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -1521,9 +1525,10 @@ func handleInternalOpen(w http.ResponseWriter, r *http.Request) {
 	// why a second double-click on the AppImage appeared to do nothing).
 	if events.count() == 0 && !noBrowser {
 		// Snapshot what the launcher needs before starting a goroutine: reading
-		// these globals inside it raced with anything that writes them.
-		url, forceApp, token := primaryURL(), appMode, appToken
-		go openDesktopWindow(url, forceApp, token)
+		// these globals inside it raced with anything that writes them. The URL
+		// carries no token: the page receives it via the /api/init handshake.
+		url, forceApp := primaryURL(), appMode
+		go openDesktopWindow(url, forceApp)
 	}
 }
 
@@ -1536,6 +1541,27 @@ func writeInstanceLock(port int) {
 
 func removeInstanceLock() {
 	_ = os.Remove(instanceLockPath())
+}
+
+// maxBodyBytes bounds the JSON bodies of the write endpoints: a runaway
+// client must not be able to buffer an unbounded payload (twice: raw body
+// plus decoded string) in memory. Generous for any real Markdown document.
+const maxBodyBytes = 32 << 20 // 32 MiB
+
+// decodeJSONBody reads one JSON request body with a size bound. An oversized
+// body is 413; malformed JSON keeps the historical 400.
+func decodeJSONBody(w http.ResponseWriter, r *http.Request, v interface{}) error {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			http.Error(w, "payload too large", http.StatusRequestEntityTooLarge)
+			return err
+		}
+		http.Error(w, "invalid json payload", http.StatusBadRequest)
+		return err
+	}
+	return nil
 }
 
 func setupMux() *http.ServeMux {
@@ -1558,7 +1584,28 @@ func setupMux() *http.ServeMux {
 		if curPath != "" {
 			loaded, err := readDiskSnapshot(curPath)
 			if err != nil {
-				writeAPIError(w, http.StatusServiceUnavailable, "snapshot_unstable", "", curPath, "", err.Error())
+				// The handshake still delivers the session token with the error:
+				// the page is local and has already passed the boundary, and the
+				// token used to arrive on the launcher URL. Without it a boot-time
+				// read failure would leave the UI with no credentials at all.
+				writeJSON(w, http.StatusServiceUnavailable, struct {
+					InitResponse
+					Success bool   `json:"success"`
+					Error   string `json:"error"`
+					Message string `json:"message,omitempty"`
+				}{
+					InitResponse{
+						Version:    version,
+						Token:      appToken,
+						OS:         runtime.GOOS,
+						ActiveFile: curPath,
+						ActiveDir:  curDir,
+						DefaultDir: defaultSaveDir(curDir),
+					},
+					false,
+					"snapshot_unstable",
+					err.Error(),
+				})
 				return
 			}
 			snap = loaded
@@ -1570,11 +1617,12 @@ func setupMux() *http.ServeMux {
 		recentsMu.Unlock()
 
 		resp := InitResponse{
-			Version:     version,
-			Token:       appToken,
-			ActiveFile:  curPath,
-			ActiveDir:   curDir,
-			DefaultDir:  defaultSaveDir(curDir),
+			Version:      version,
+			Token:        appToken,
+			OS:           runtime.GOOS,
+			ActiveFile:   curPath,
+			ActiveDir:    curDir,
+			DefaultDir:   defaultSaveDir(curDir),
 			Recents:      recentsCopy,
 			FileContent:  string(snap.Content),
 			FileRevision: snap.Revision,
@@ -1674,8 +1722,7 @@ func setupMux() *http.ServeMux {
 		}
 
 		var req SaveRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "invalid json payload", http.StatusBadRequest)
+		if err := decodeJSONBody(w, r, &req); err != nil {
 			return
 		}
 
@@ -1885,8 +1932,7 @@ func setupMux() *http.ServeMux {
 			Path string `json:"path"`
 			Name string `json:"name"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "invalid payload", http.StatusBadRequest)
+		if err := decodeJSONBody(w, r, &req); err != nil {
 			return
 		}
 		req.Name = strings.TrimSpace(req.Name)
@@ -1918,9 +1964,9 @@ func setupMux() *http.ServeMux {
 			return
 		}
 		var req struct {
-			OldPath   string `json:"old_path"`
-			NewPath   string `json:"new_path"`
-			Content   string `json:"content"`
+			OldPath string `json:"old_path"`
+			NewPath string `json:"new_path"`
+			Content string `json:"content"`
 			// SourcePath is the explicit copy source. It is set only by the
 			// Save As / copy flow (old_path empty) and is used exclusively to
 			// refuse a destination that aliases the source: it never authorises
@@ -1933,8 +1979,7 @@ func setupMux() *http.ServeMux {
 			ExpectedRevision string `json:"expected_revision,omitempty"`
 			Overwrite        bool   `json:"overwrite,omitempty"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "invalid payload", http.StatusBadRequest)
+		if err := decodeJSONBody(w, r, &req); err != nil {
 			return
 		}
 		if req.ExpectedRevision != "" && !validDiskRevision(req.ExpectedRevision) {
@@ -2184,23 +2229,6 @@ func setupMux() *http.ServeMux {
 		})
 	}))
 
-	mux.HandleFunc("/api/export/html", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		var req struct {
-			HTML  string `json:"html"`
-			Title string `json:"title"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "invalid body", http.StatusBadRequest)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(req.HTML))
-	}))
-
 	// /api/asset serves pictures referenced by the open document (![alt](./img.png)),
 	// scoped strictly to the document directory and its descendants (path traversal guard).
 	mux.HandleFunc("/api/asset", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
@@ -2383,7 +2411,10 @@ func main() {
 	fmt.Println("=====================================================")
 
 	if !*noBrowserFlag {
-		go openDesktopWindow(appURL, *appFlag, appToken)
+		// No token in the URL: it would be readable by other local users through
+		// /proc/<pid>/cmdline. The page gets the token from /api/init, which is
+		// served same-origin behind the Host/Origin boundary.
+		go openDesktopWindow(appURL, *appFlag)
 	}
 
 	server := &http.Server{

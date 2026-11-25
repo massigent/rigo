@@ -13,7 +13,7 @@ SOURCE_APPDIR := TypeCraft.AppDir
 
 GO_LDFLAGS := -s -w -X main.version=$(VERSION)
 
-.PHONY: all build test clean cross-compile dist-linux dist-windows dist-macos install-appdir appimage deb rpm linux-packages
+.PHONY: all build test clean cross-compile dist-linux dist-windows dist-macos install-appdir appimage deb rpm linux-packages windows-installer macos-packages
 
 all: build
 
@@ -115,10 +115,43 @@ deb rpm:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -trimpath -buildvcs=false -ldflags "$(GO_LDFLAGS)" -o "$$stage/$(APP_NAME)" .; \
 	sh packaging/native.sh "$@" '$(VERSION)' "$$stage/$(APP_NAME)" "$$outdir"
 
+# Cross-package on Linux; no signing keys or native hosts are required.
+windows-installer:
+	@set -eu; \
+	outdir='$(DIST_DIR)'; mkdir -p -- "$$outdir"; \
+	stage=$$(mktemp -d -- "$$outdir/.typecraft-windows.XXXXXXXX"); \
+	trap 'rm -rf -- "$$stage"' EXIT; trap 'exit 1' HUP INT TERM; \
+	stage=$$(cd "$$stage" && pwd -P); \
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -trimpath -buildvcs=false -ldflags "$(GO_LDFLAGS) -H=windowsgui" -o "$$stage/typecraft.exe" .; \
+	icotool -c -o "$$stage/TypeCraft.ico" $(SOURCE_APPDIR)/typecraft.png; \
+	artifact='TypeCraft-$(VERSION)-windows-x64-setup.exe'; \
+	makensis -V2 "-DVERSION=$(VERSION)" "-DOUTPUT=$$stage/$$artifact" "-DPAYLOAD=$$stage/typecraft.exe" \
+		"-DICON=$$stage/TypeCraft.ico" "-DNOTICE=$(CURDIR)/packaging/copyright" packaging/typecraft.nsi; \
+	test -s "$$stage/$$artifact"; \
+	mv -fT -- "$$stage/$$artifact" "$$outdir/$$artifact"
+
+macos-packages:
+	@set -eu; \
+	outdir='$(DIST_DIR)'; mkdir -p -- "$$outdir"; \
+	stage=$$(mktemp -d -- "$$outdir/.typecraft-macos.XXXXXXXX"); \
+	trap 'rm -rf -- "$$stage"' EXIT; trap 'exit 1' HUP INT TERM; \
+	png2icns "$$stage/TypeCraft.icns" $(SOURCE_APPDIR)/typecraft.png; \
+	for arch in arm64 amd64; do \
+		CGO_ENABLED=0 GOOS=darwin GOARCH="$$arch" $(GO) build -trimpath -buildvcs=false -ldflags "$(GO_LDFLAGS)" -o "$$stage/typecraft" .; \
+		python3 packaging/macos-zip.py '$(VERSION)' "$$stage/typecraft" "$$stage/TypeCraft.icns" packaging/copyright \
+			"$$stage/TypeCraft-$(VERSION)-macos-$$arch.zip"; \
+	done; \
+	for arch in arm64 amd64; do \
+		artifact="TypeCraft-$(VERSION)-macos-$$arch.zip"; \
+		mv -fT -- "$$stage/$$artifact" "$$outdir/$$artifact"; \
+	done
+
 clean:
 	@echo "Cleaning up..."
 	@rm -f $(APP_NAME)
 	@rm -f -- '$(DIST_DIR)/$(APP_NAME)-linux-amd64' '$(DIST_DIR)/$(APP_NAME)-linux-arm64' \
 		'$(DIST_DIR)/$(APP_NAME)-windows-amd64.exe' '$(DIST_DIR)/$(APP_NAME)-macos-amd64' \
 		'$(DIST_DIR)/$(APP_NAME)-macos-arm64' '$(DIST_DIR)/$(APPIMAGE_NAME)' \
-		'$(DIST_DIR)/$(APP_NAME)_$(VERSION)-1_amd64.deb' '$(DIST_DIR)/$(APP_NAME)-$(VERSION)-1.x86_64.rpm'
+		'$(DIST_DIR)/$(APP_NAME)_$(VERSION)-1_amd64.deb' '$(DIST_DIR)/$(APP_NAME)-$(VERSION)-1.x86_64.rpm' \
+		'$(DIST_DIR)/TypeCraft-$(VERSION)-windows-x64-setup.exe' \
+		'$(DIST_DIR)/TypeCraft-$(VERSION)-macos-arm64.zip' '$(DIST_DIR)/TypeCraft-$(VERSION)-macos-amd64.zip'

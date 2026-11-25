@@ -1,4 +1,4 @@
-name: Publish Linux release
+name: Publish TypeCraft release
 
 on:
   push:
@@ -38,7 +38,11 @@ jobs:
           title=${title#\# }
           dest=$(mktemp -d)
           trap 'rm -rf -- "$dest"' EXIT
-          files=("typecraft_${version}-1_amd64.deb" "typecraft-${version}-1.x86_64.rpm" "TypeCraft-x86_64.AppImage" "SHA256SUMS")
+          files=(
+            "typecraft_${version}-1_amd64.deb" "typecraft-${version}-1.x86_64.rpm" "TypeCraft-x86_64.AppImage"
+            "TypeCraft-${version}-windows-x64-setup.exe" "TypeCraft-${version}-macos-arm64.zip" "TypeCraft-${version}-macos-amd64.zip"
+            "SHA256SUMS"
+          )
           for file in "${files[@]}"; do
             gh api -H 'Accept: application/vnd.github.raw+json' \
               "repos/$GITHUB_REPOSITORY/contents/$RELEASE_TAG/$file?ref=downloads" > "$dest/$file"

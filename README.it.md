@@ -4,7 +4,7 @@
 
 Scrivi in Markdown e passa dal sorgente all’anteprima o alla vista affiancata. Lo scorrimento a macchina da scrivere e la messa a fuoco per frase o paragrafo ti aiutano a restare sul testo. I documenti restano normali file sul disco: non serve un account. Un unico eseguibile Go serve l’interfaccia nel browser.
 
-[Scarica per Linux x86_64](https://github.com/massigent/typecraft/tree/downloads/v1.0.3) · [Note di rilascio](docs/releases/v1.0.3.md) · [English](README.md)
+[Scarica per Linux, Windows e macOS](https://github.com/massigent/typecraft/releases/tag/v1.0.3) · [Note di rilascio](docs/releases/v1.0.3.md) · [English](README.md)
 
 ---
 
@@ -127,6 +127,12 @@ chmod +x dist/TypeCraft-x86_64.AppImage
 ```
 
 Su un sistema senza FUSE, avvia l'AppImage con `APPIMAGE_EXTRACT_AND_RUN=1`. Dopo aver installato il DEB o l'RPM, cerca **TypeCraft** nel menu applicazioni o esegui `typecraft`.
+
+### Pacchetti Windows e macOS
+
+Scarica il setup Windows x64 dalla [release](https://github.com/massigent/typecraft/releases/tag/v1.0.3) ed eseguilo dal tuo account. Su macOS, scarica lo ZIP per Apple Silicon (`arm64`) o Intel (`amd64`), estrailo e sposta `TypeCraft.app` in Applicazioni. Queste build non hanno una firma di distribuzione; le app macOS non sono notarizzate.
+
+Per compilare da Linux usa `make windows-installer` (richiede NSIS e `icotool`) e `make macos-packages` (richiede Python 3 e `png2icns`). Dopo entrambe le build, `sh tests/desktop-packaging-smoke.sh` verifica gli artefatti con 7-Zip e Python.
 
 ### Opzioni da Riga di Comando:
 - `./typecraft [file.md]` : Apre immediatamente il file indicato.

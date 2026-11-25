@@ -4,7 +4,7 @@
 
 Write in plain Markdown, then switch between source, rendered preview, and a synchronized split view. Typewriter scrolling and sentence or paragraph focus keep the current passage in view. Your documents stay in ordinary files on disk; no account is required. A single Go executable serves the interface in your browser.
 
-[Download for Linux x86_64](https://github.com/massigent/typecraft/tree/downloads/v1.0.3) · [Release notes](docs/releases/v1.0.3.md) · [Italiano](README.it.md)
+[Download for Linux, Windows and macOS](https://github.com/massigent/typecraft/releases/tag/v1.0.3) · [Release notes](docs/releases/v1.0.3.md) · [Italiano](README.it.md)
 
 ---
 
@@ -121,6 +121,12 @@ chmod +x dist/TypeCraft-x86_64.AppImage
 ```
 
 On a system without FUSE, launch the AppImage with `APPIMAGE_EXTRACT_AND_RUN=1`. After installing the DEB or RPM, open **TypeCraft** from the applications menu or run `typecraft`.
+
+### Windows and macOS packages
+
+Download the Windows x64 setup from [Releases](https://github.com/massigent/typecraft/releases/tag/v1.0.3) and run it from your Windows account. On macOS, download the ZIP for Apple Silicon (`arm64`) or Intel (`amd64`), extract it, and move `TypeCraft.app` to Applications. These builds are not signed with a distribution certificate or notarized.
+
+To cross-build on Linux, run `make windows-installer` (requires NSIS and `icotool`) or `make macos-packages` (requires Python 3 and `png2icns`). Run `sh tests/desktop-packaging-smoke.sh` after both builds to inspect the outputs with 7-Zip and Python.
 
 ---
 

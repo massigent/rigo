@@ -44,8 +44,14 @@ jobs:
             "SHA256SUMS"
           )
           for file in "${files[@]}"; do
-            gh api -H 'Accept: application/vnd.github.raw+json' \
-              "repos/$GITHUB_REPOSITORY/contents/$RELEASE_TAG/$file?ref=downloads" > "$dest/$file"
+            # curl instead of `gh api`: the raw media type makes gh decode the
+            # response through a charset transform, which fails on binary
+            # artifacts ("transform: short source buffer", ErrShortSrc).
+            # curl streams bytes verbatim and fails cleanly on HTTP errors.
+            curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github.raw+json' \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$RELEASE_TAG/$file?ref=downloads" \
+              > "$dest/$file"
             test -s "$dest/$file"
           done
           (cd "$dest" && sha256sum --strict -c SHA256SUMS)

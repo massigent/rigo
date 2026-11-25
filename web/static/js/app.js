@@ -691,10 +691,31 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
       }
     });
 
-    editor.addEventListener("click", () => {
-      window.typewriter.centerCaret(true);
-      window.focusDim.render();
+    // Typewriter recentering after a click is deferred, and a new mousedown
+    // cancels it: the text must never move under the cursor between the two
+    // clicks of a word selection, or the double click selects a line above the
+    // word (the smooth scroll moved the caret's target).
+    let pendingClickRecenter = null;
+    editor.addEventListener("mousedown", () => {
+      clearTimeout(pendingClickRecenter);
+      pendingClickRecenter = null;
+      // Freeze a smooth scroll still animating from a previous click-recenter:
+      // assigning scrollTop (behavior auto) cancels the ongoing smooth scroll.
+      try { editor.scrollTop = editor.scrollTop; } catch (_) {}
+    });
+    editor.addEventListener("click", (e) => {
       updateCursorPosition();
+      window.focusDim.render();
+      if (e.detail > 1) return; // double/triple click: selecting, not moving
+      clearTimeout(pendingClickRecenter);
+      pendingClickRecenter = setTimeout(() => {
+        pendingClickRecenter = null;
+        window.typewriter.centerCaret(true);
+      }, 300);
+    });
+    editor.addEventListener("dblclick", () => {
+      clearTimeout(pendingClickRecenter);
+      pendingClickRecenter = null;
     });
 
     // View Mode buttons

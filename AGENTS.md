@@ -117,3 +117,22 @@ Properties of the automation, learned the hard way:
   if the bundle is ever upgraded.
 - UI strings are Italian by design (the product ships an Italian UI); release
   notes and code comments are English. Keep both READMEs in sync.
+
+## The native Rust prototype (`native/`)
+
+`native/` is **gitignored on `main`**: it is tracked only on the `rust-native`
+branch, an egui prototype that reimplements the document protocol without a
+browser. Work on it there, rebasing onto `main` when `main` moves:
+
+```sh
+cd native
+cargo build   # release build is what gets smoke-tested
+cargo test    # 20 tests: 12 unit + 8 headless, no display needed
+```
+
+The crate is `rigo-native` and the app struct is `RigoApp`; the old product
+name must not reappear in it, and fonts/iconography must stay OFL/original
+(IBM Plex TTF in `native/assets/fonts/`, embedded via `include_bytes!`).
+When the prototype becomes a distributable artefact, add its fonts to
+`THIRD-PARTY.md` and `packaging/copyright` first — they are already listed
+as embedded, not as Web assets.

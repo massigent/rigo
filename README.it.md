@@ -233,7 +233,7 @@ Seconda revisione di irrobustimento sopra la 1.0.3. Dettaglio completo in `docs/
 - **Nessun token sulla riga di comando del browser**: la finestra si apriva su un URL con il token di
   sessione, leggibile da altri utenti locali via `/proc/<pid>/cmdline`. Ora la pagina riceve il token
   dall'handshake `/api/init` (inclusa la risposta d'errore all'avvio) e ogni fetch si autentica con
-  l'header `X-Typecraft-Token`; la forma in query resta solo per `EventSource` e `<img>`, che non
+  l'header `X-Rigo-Token`; la forma in query resta solo per `EventSource` e `<img>`, che non
   possono impostare header.
 - **Corpi delle richieste limitati**: `/api/save`, `/api/rename` e `/api/mkdir` limitano il payload JSON
   a 32 MiB (`413` oltre), così un client impazzito non può riempire la memoria.

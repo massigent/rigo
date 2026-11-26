@@ -235,7 +235,7 @@ A second hardening review on top of 1.0.3. Full detail in `docs/releases/v1.0.4.
 - **No token on the browser command line**: the app window used to open at a URL carrying the session
   token, readable by other local users through `/proc/<pid>/cmdline`. The page now receives the token
   from the `/api/init` handshake (including the startup-error response), and every fetch authenticates
-  with the `X-Typecraft-Token` header; the query string form remains only for `EventSource` and
+  with the `X-Rigo-Token` header; the query string form remains only for `EventSource` and
   `<img>`, which cannot set headers.
 - **Bounded request bodies**: `/api/save`, `/api/rename` and `/api/mkdir` cap their JSON payloads at
   32 MiB (`413` beyond), so a runaway client cannot buffer an unbounded document in memory.

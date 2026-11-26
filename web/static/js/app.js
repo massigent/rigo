@@ -114,6 +114,7 @@
     saveTimer: null,
     typingTimer: null,
     previewTimer: null,
+    statsTimer: null,
     appToken: "",
     eventSource: null,
     watchTimer: null,
@@ -583,7 +584,10 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     };
     if (fontCurrentLabel) fontCurrentLabel.textContent = labels[fontName] || "Font";
 
-    if (window.typewriter) window.typewriter.centerCaret(true);
+    if (window.typewriter) {
+      window.typewriter.invalidate();
+      window.typewriter.centerCaret(true);
+    }
     if (window.focusDim) window.focusDim.render();
   }
 
@@ -798,6 +802,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     // Window resize synchronizes focus dim metrics
     window.addEventListener("resize", () => {
       if (window.focusDim) window.focusDim.syncMetrics();
+      if (window.typewriter) window.typewriter.invalidate();
     });
 
     // Mouse movement wakes up Zen HUD
@@ -1165,16 +1170,32 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     }, 2400);
   }
 
+  // Above this size the outline and preview debounces slow down, so a big
+  // document never pays a full parse per burst of typing.
+  const LARGE_DOC_BYTES = 150000;
+
+  function outlineDelayMs() {
+    return editor.value.length > LARGE_DOC_BYTES ? 400 : 120;
+  }
+
+  function previewDelayMs() {
+    return editor.value.length > LARGE_DOC_BYTES ? 400 : 150;
+  }
+
   function updateAll() {
-    updateWordCountAndStats();
+    // Per keystroke: cursor position is allocation-free; the word/sentence
+    // statistics are debounced (they walk the whole document with several
+    // regexes and nobody reads them while typing).
     updateCursorPosition();
-    window.outline.update();
+    window.outline.update(outlineDelayMs());
+    scheduleStats();
     // Debounce preview: marked.parse su doc intero a ogni tasto laggava (Typora rende incrementale).
     clearTimeout(state.previewTimer);
     if (state.viewMode === "live" || state.viewMode === "split") {
       state.previewTimer = setTimeout(() => {
+        state.previewTimer = null;
         window.livePreview.render(editor.value);
-      }, 150);
+      }, previewDelayMs());
     }
   }
 
@@ -1185,6 +1206,16 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     if (state.viewMode === "live" || state.viewMode === "split") {
       window.livePreview.render(editor.value);
     }
+  }
+
+  // Debounced statistics: the status bar and the stats modal read them when
+  // the user pauses, not on every keystroke.
+  function scheduleStats() {
+    clearTimeout(state.statsTimer);
+    state.statsTimer = setTimeout(() => {
+      state.statsTimer = null;
+      updateWordCountAndStats();
+    }, 250);
   }
 
   function updateWordCountAndStats() {
@@ -1221,11 +1252,19 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
   }
 
   function updateCursorPosition() {
+    // Allocation-free: a native indexOf scan instead of substring + split
+    // of the whole prefix on every keystroke.
     const selStart = editor.selectionStart || 0;
-    const textBefore = editor.value.substring(0, selStart);
-    const lines = textBefore.split("\n");
-    const lineNum = lines.length;
-    const colNum = lines[lines.length - 1].length + 1;
+    const text = editor.value;
+    let lineNum = 1;
+    let lineStart = 0;
+    for (;;) {
+      const nl = text.indexOf("\n", lineStart);
+      if (nl < 0 || nl >= selStart) break;
+      lineNum += 1;
+      lineStart = nl + 1;
+    }
+    const colNum = selStart - lineStart + 1;
     statusCursorPos.textContent = `Ln ${lineNum}, Col ${colNum}`;
   }
 
@@ -1692,6 +1731,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     const prevStart = editor.selectionStart;
     const prevEnd = editor.selectionEnd;
     const prevScroll = editor.scrollTop;
+    window.typewriter.invalidate();
     editor.value = content;
     try {
       const max = editor.value.length;
@@ -1747,6 +1787,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     }
 
     beginDocumentSession();
+    window.typewriter.invalidate();
     editor.value = data.content == null ? "" : data.content;
     state.currentPath = data.path || "";
     state.diskRevision = typeof data.revision === "string" ? data.revision : "";
@@ -1773,6 +1814,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     // the user is no longer waiting for) and every timer of the old document.
     state.openSeq += 1;
     beginDocumentSession();
+    window.typewriter.invalidate();
     editor.value = "";
     state.currentPath = "";
     state.diskRevision = "";

@@ -34,7 +34,7 @@ import (
 var embeddedWebFS embed.FS
 
 var (
-	version      = "1.0.5"
+	version      = "1.0.6"
 	activeFileMu sync.RWMutex
 	activePath   string
 	activeDir    string
@@ -1250,7 +1250,6 @@ func openDesktopWindow(targetURL string, forceApp bool) {
 			os.Getenv("PROGRAMFILES(X86)") + `\Microsoft\Edge\Application\msedge.exe`,
 		}
 	default: // Linux / Unix
-		def := detectDefaultLinuxBrowser()
 		allLinux := []string{
 			"brave-browser",
 			"google-chrome",
@@ -1259,12 +1258,25 @@ func openDesktopWindow(targetURL string, forceApp bool) {
 			"chromium-browser",
 			"microsoft-edge",
 		}
-		if def != "" {
-			browsers = append(browsers, def)
-		}
+		// Cheap PATH scan first: the xdg-settings exec (whose only purpose is
+		// to put the default Chromium-family browser first) is skipped entirely
+		// when no such browser exists — the common Fedora + Firefox case pays
+		// one less process launch on every start.
+		var present []string
 		for _, b := range allLinux {
-			if b != def {
-				browsers = append(browsers, b)
+			if _, err := exec.LookPath(b); err == nil {
+				present = append(present, b)
+			}
+		}
+		if len(present) > 0 {
+			def := detectDefaultLinuxBrowser()
+			if def != "" {
+				browsers = append(browsers, def)
+			}
+			for _, b := range present {
+				if b != def {
+					browsers = append(browsers, b)
+				}
 			}
 		}
 	}

@@ -4,7 +4,7 @@
 
 Scrivi in Markdown e passa dal sorgente all’anteprima o alla vista affiancata. Lo scorrimento a macchina da scrivere e la messa a fuoco per frase o paragrafo ti aiutano a restare sul testo. I documenti restano normali file sul disco: non serve un account. Un unico eseguibile Go serve l’interfaccia nel browser.
 
-[Scarica per Linux, Windows e macOS](https://github.com/massigent/typecraft/releases/tag/v1.0.5) · [Note di rilascio](docs/releases/v1.0.5.md) · [English](README.md)
+[Scarica per Linux, Windows e macOS](https://github.com/massigent/typecraft/releases/tag/v1.0.6) · [Note di rilascio](docs/releases/v1.0.6.md) · [English](README.md)
 
 ---
 
@@ -116,10 +116,10 @@ In caso di errore la staging e l'AppImage parziale vengono rimosse, lasciando in
 
 ```bash
 # Ubuntu
-sudo apt install ./dist/typecraft_1.0.5-1_amd64.deb
+sudo apt install ./dist/typecraft_1.0.6-1_amd64.deb
 
 # Fedora
-sudo dnf install ./dist/typecraft-1.0.5-1.x86_64.rpm
+sudo dnf install ./dist/typecraft-1.0.6-1.x86_64.rpm
 
 # AppImage (non richiede installazione)
 chmod +x dist/TypeCraft-x86_64.AppImage
@@ -130,7 +130,7 @@ Su un sistema senza FUSE, avvia l'AppImage con `APPIMAGE_EXTRACT_AND_RUN=1`. Dop
 
 ### Pacchetti Windows e macOS
 
-Scarica il setup Windows x64 dalla [release](https://github.com/massigent/typecraft/releases/tag/v1.0.5) ed eseguilo dal tuo account. Su macOS, scarica lo ZIP per Apple Silicon (`arm64`) o Intel (`amd64`), estrailo e sposta `TypeCraft.app` in Applicazioni. Queste build non hanno una firma di distribuzione; le app macOS non sono notarizzate.
+Scarica il setup Windows x64 dalla [release](https://github.com/massigent/typecraft/releases/tag/v1.0.6) ed eseguilo dal tuo account. Su macOS, scarica lo ZIP per Apple Silicon (`arm64`) o Intel (`amd64`), estrailo e sposta `TypeCraft.app` in Applicazioni. Queste build non hanno una firma di distribuzione; le app macOS non sono notarizzate.
 
 Per compilare da Linux usa `make windows-installer` (richiede NSIS e `icotool`) e `make macos-packages` (richiede Python 3 e `png2icns`). Dopo entrambe le build, `sh tests/desktop-packaging-smoke.sh` verifica gli artefatti con 7-Zip e Python.
 
@@ -173,6 +173,21 @@ Revisione condotta confrontando il codice con build reali di iA Writer e Typora:
 - 6 nuovi test di regressione (`go test -race`).
 
 ---
+
+## 🔧 Novità della 1.0.6
+
+Passata di ottimizzazione su avvio e percorsi caldi per ogni tasto. Dettaglio completo in `docs/releases/v1.0.6.md`.
+
+- **Avvio**: eliminato il ritardo fisso di 200ms pre-lancio (il server è già in ascolto prima che il
+  browser parta) e l'esecuzione di `xdg-settings` viene saltata del tutto quando non esiste nessun
+  browser Chromium-family — il caso Fedora + Firefox pagano un processo in meno a ogni avvio.
+- **Digitazione su documenti grandi**: il mirror del caret typewriter ora misura solo la riga
+  corrente (O(riga) invece di impaginare tutto il prefisso a ogni tasto), il backdrop del focus
+  mantiene tre span persistenti e aggiorna solo frase/paragrafo corrente (niente re-parse HTML
+  dell'intero documento per tasto), le statistiche parole/frasi sono con debounce (passavano in
+  rassegna tutto il file con diverse regex a ogni tasto) e la posizione del cursore è calcolata
+  senza copiare il prefisso. Outline e preview rallentano a 400ms sopra i 150KB, così le raffiche di
+  battitura non pagano un parse completo per tasto.
 
 ## 🔧 Novità della 1.0.5
 

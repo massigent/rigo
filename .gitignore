@@ -23,3 +23,6 @@ Thumbs.db
 
 # Frontend test dependencies (npm install inside tests/frontend)
 node_modules/
+
+# Native Rust prototype (tracked on the rust-native branch)
+native/

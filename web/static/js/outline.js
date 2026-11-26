@@ -8,10 +8,11 @@ class OutlineEngine {
     this._deb = null;
   }
 
-  update() {
+  // `delay` lets the caller slow the reparse down on large documents.
+  update(delay) {
     if (!this.container || !this.editor) return;
     clearTimeout(this._deb);
-    this._deb = setTimeout(() => this._updateNow(), 120);
+    this._deb = setTimeout(() => this._updateNow(), delay || 120);
   }
 
   _updateNow() {

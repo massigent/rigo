@@ -13,14 +13,17 @@ file and is also shipped at `web/static/fonts/licenses/`.
 
 | Font | Files | Copyright |
 | --- | --- | --- |
-| IBM Plex Mono | `IBMPlexMono-Regular.woff2` | Copyright © 2017 IBM Corp. with Reserved Font Name "Plex" |
-| IBM Plex Sans | `IBMPlexSans-Regular.woff2` | Copyright © 2017 IBM Corp. with Reserved Font Name "Plex" |
-| IBM Plex Serif | `IBMPlexSerif-Regular.woff2` | Copyright © 2017 IBM Corp. with Reserved Font Name "Plex" |
+| IBM Plex Mono | `IBMPlexMono-Regular.woff2`, `native/assets/fonts/IBMPlexMono-Regular.ttf` | Copyright © 2017 IBM Corp. with Reserved Font Name "Plex" |
+| IBM Plex Sans | `IBMPlexSans-Regular.woff2`, `native/assets/fonts/IBMPlexSans-Regular.ttf` | Copyright © 2017 IBM Corp. with Reserved Font Name "Plex" |
+| IBM Plex Serif | `IBMPlexSerif-Regular.woff2`, `native/assets/fonts/IBMPlexSerif-Regular.ttf` | Copyright © 2017 IBM Corp. with Reserved Font Name "Plex" |
 | EB Garamond | `ebgaramond-400.woff2` | Copyright 2017 The EB Garamond Project Authors |
 | Lora | `lora-400.woff2` | Copyright 2011 The Lora Project Authors, with Reserved Font Name "Lora" |
 
 The IBM Plex files come from the official `@ibm/plex-*` packages
-(https://github.com/IBM/plex).
+(https://github.com/IBM/plex). The `.woff2` files are served to the web UI; the
+`.ttf` copies are embedded into the Rust binary by `native/src/main.rs` with
+`include_bytes!` (the `rust-native` branch), and the OFL text ships next to them
+in `native/assets/fonts/OFL-IBM-Plex.txt`.
 
 ## JavaScript
 

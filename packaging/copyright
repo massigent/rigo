@@ -7,6 +7,8 @@ Rigo is distributed under the MIT license (below).
 
   IBM Plex Mono, IBM Plex Sans, IBM Plex Serif
     Copyright (c) 2017 IBM Corp. with Reserved Font Name "Plex"
+    (web/static/fonts/*.woff2, and the .ttf copies embedded in the Rust
+     binary from native/assets/fonts/)
   EB Garamond
     Copyright 2017 The EB Garamond Project Authors
   Lora

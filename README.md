@@ -50,19 +50,19 @@ machine: local-first by architecture, not by promise.**
 > [!NOTE]
 > Rigo was previously called TypeCraft. The rename came with a licensing cleanup: the bundled
 > fonts are now IBM Plex (SIL OFL) and the project is published under the MIT license. Nothing
-> changes for your documents: the same Markdown files, the same folders, and your recents are
-> migrated automatically on first start.
+> changes for your documents: the same Markdown files, the same folders, and your recents and
+> preferences are migrated automatically on first start.
 
 ## Download
 
 Prebuilt packages for **Linux, Windows and macOS** are on the
-[releases page](https://github.com/massigent/rigo/releases/latest) (v1.1.0 currently), with
+[releases page](https://github.com/massigent/rigo/releases/latest) (v1.1.1 currently), with
 `SHA256SUMS` for verification:
 
 | System | Package | Install |
 | :--- | :--- | :--- |
-| Ubuntu/Debian | `rigo_*_amd64.deb` | `sudo apt install ./rigo_1.1.0-1_amd64.deb` |
-| Fedora/RHEL | `rigo-*.x86_64.rpm` | `sudo dnf install ./rigo-1.1.0-1.x86_64.rpm` |
+| Ubuntu/Debian | `rigo_*_amd64.deb` | `sudo apt install ./rigo_1.1.1-1_amd64.deb` |
+| Fedora/RHEL | `rigo-*.x86_64.rpm` | `sudo dnf install ./rigo-1.1.1-1.x86_64.rpm` |
 | Any Linux | `Rigo-x86_64.AppImage` | `chmod +x` and run (no installation; `APPIMAGE_EXTRACT_AND_RUN=1` without FUSE) |
 | Windows x64 | `Rigo-*-windows-x64-setup.exe` | Run the setup from your account |
 | macOS (Apple Silicon / Intel) | `Rigo-*-macos-*.zip` | Extract, move `Rigo.app` to Applications |
@@ -169,6 +169,7 @@ A **native Rust prototype** of the editor (egui, no browser) lives on the
 
 | Version | Focus |
 | :--- | :--- |
+| [1.1.1](docs/releases/v1.1.1.md) | **Upgrades keep your preferences**: the browser profile — theme, font, view mode, typewriter, focus, sound — is carried over from the previous name instead of being recreated. |
 | [1.1.0](docs/releases/v1.1.0.md) | **The Rigo rename**: MIT release, IBM Plex fonts (SIL OFL), original generated logo, neutral theme names — preferences migrated automatically. |
 | [1.0.6](docs/releases/v1.0.6.md) | Performance: startup and per-keystroke hot paths on large documents. |
 | [1.0.5](docs/releases/v1.0.5.md) | Double-click word selection with typewriter scrolling on. |

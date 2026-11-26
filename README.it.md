@@ -51,19 +51,19 @@ documenti non lasciano mai la macchina: local-first per architettura, non per pr
 > [!NOTE]
 > Rigo si chiamava TypeCraft. Il cambio nome è arrivato con la pulizia delle licenze: i font
 > incorporati sono ora IBM Plex (SIL OFL) e il progetto è pubblicato con licenza MIT. Per i tuoi
-> documenti non cambia nulla: stessi file Markdown, stesse cartelle, e i recenti migrano
-> automaticamente al primo avvio.
+> documenti non cambia nulla: stessi file Markdown, stesse cartelle, e recenti e preferenze
+> migrano automaticamente al primo avvio.
 
 ## Scarica
 
 I pacchetti precompilati per **Linux, Windows e macOS** sono nella
-[pagina dei rilasci](https://github.com/massigent/rigo/releases/latest) (attualmente v1.1.0), con
+[pagina dei rilasci](https://github.com/massigent/rigo/releases/latest) (attualmente v1.1.1), con
 `SHA256SUMS` per la verifica:
 
 | Sistema | Pacchetto | Installazione |
 | :--- | :--- | :--- |
-| Ubuntu/Debian | `rigo_*_amd64.deb` | `sudo apt install ./rigo_1.1.0-1_amd64.deb` |
-| Fedora/RHEL | `rigo-*.x86_64.rpm` | `sudo dnf install ./rigo-1.1.0-1.x86_64.rpm` |
+| Ubuntu/Debian | `rigo_*_amd64.deb` | `sudo apt install ./rigo_1.1.1-1_amd64.deb` |
+| Fedora/RHEL | `rigo-*.x86_64.rpm` | `sudo dnf install ./rigo-1.1.1-1.x86_64.rpm` |
 | Qualsiasi Linux | `Rigo-x86_64.AppImage` | `chmod +x` e via (nessuna installazione; `APPIMAGE_EXTRACT_AND_RUN=1` senza FUSE) |
 | Windows x64 | `Rigo-*-windows-x64-setup.exe` | Esegui l'installatore dal tuo account |
 | macOS (Apple Silicon / Intel) | `Rigo-*-macos-*.zip` | Estrai, sposta `Rigo.app` in Applicazioni |
@@ -173,6 +173,7 @@ Un **prototipo nativo in Rust** dell'editor (egui, senza browser) vive sul branc
 
 | Versione | Focus |
 | :--- | :--- |
+| [1.1.1](docs/releases/v1.1.1.md) | **Gli aggiornamenti conservano le preferenze**: il profilo del browser — tema, font, vista, typewriter, focus, suono — viene portato dal vecchio nome invece di essere ricreato. |
 | [1.1.0](docs/releases/v1.1.0.md) | **Il cambio nome in Rigo**: rilascio MIT, font IBM Plex (SIL OFL), logo originale generato, nomi dei temi neutrali — le preferenze migrano automaticamente. |
 | [1.0.6](docs/releases/v1.0.6.md) | Prestazioni: avvio e percorsi caldi per battuta sui documenti grandi. |
 | [1.0.5](docs/releases/v1.0.5.md) | Selezione della parola col doppio clic a scorrimento attivo. |

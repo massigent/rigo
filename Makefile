@@ -3,7 +3,7 @@
 
 GO ?= $(shell which go 2>/dev/null || echo $(HOME)/.local/go/bin/go)
 APP_NAME := rigo
-VERSION := 1.1.0
+VERSION := 1.1.1
 DIST_DIR ?= dist
 
 # Override with a path to the executable if appimagetool is not on PATH.

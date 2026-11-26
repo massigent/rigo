@@ -1,11 +1,11 @@
 # Binaries and build artifacts
-typecraft
-typecraft-*
+rigo
+rigo-*
 *.exe
 *.AppImage
 dist/
 build/
-TypeCraft.AppDir/usr/bin/*
+Rigo.AppDir/usr/bin/*
 
 # OS and Editor files
 .DS_Store

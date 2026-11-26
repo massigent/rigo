@@ -370,7 +370,7 @@ func TestBoundaryRejectsForeignHostEverywhere(t *testing.T) {
 		"/api/events",
 		"/does-not-exist",
 	}
-	headers := map[string]string{"X-Typecraft-Token": appToken}
+	headers := map[string]string{"X-Rigo-Token": appToken}
 
 	for _, host := range foreignHosts {
 		for _, path := range paths {
@@ -393,9 +393,9 @@ func TestBoundaryRejectsForeignHostEverywhere(t *testing.T) {
 	for _, host := range foreignHosts {
 		for _, path := range postPaths {
 			resp, body := env.request("POST", path, host, map[string]string{
-				"X-Typecraft-Token":   appToken,
-				"X-Typecraft-Control": controlToken,
-				"Content-Type":        "application/json",
+				"X-Rigo-Token":   appToken,
+				"X-Rigo-Control": controlToken,
+				"Content-Type":   "application/json",
 			}, nil, strings.NewReader(`{"path":"/tmp/x.md","name":"x","old_path":"","new_path":"/tmp/x.md","content":"x","paths":[]}`))
 			if resp.StatusCode != http.StatusForbidden {
 				t.Errorf("POST host %q on %s: got %d, want 403", host, path, resp.StatusCode)
@@ -408,7 +408,7 @@ func TestBoundaryRejectsForeignHostEverywhere(t *testing.T) {
 
 	// Forwarded headers must not extend trust.
 	spoof := map[string]string{
-		"X-Typecraft-Token": appToken,
+		"X-Rigo-Token":      appToken,
 		"X-Forwarded-Host":  env.validHost(),
 		"X-Forwarded-Proto": "http",
 		"Forwarded":         "host=" + env.validHost() + ";proto=http",
@@ -487,7 +487,7 @@ func TestBoundaryKeepsTokenAndSecretAuth(t *testing.T) {
 	if resp, _ := env.request("GET", statPath, "", nil, nil, nil); resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("missing token on a valid Host: got %d, want 401", resp.StatusCode)
 	}
-	if resp, _ := env.request("GET", statPath, "", map[string]string{"X-Typecraft-Token": "wrong"}, nil, nil); resp.StatusCode != http.StatusUnauthorized {
+	if resp, _ := env.request("GET", statPath, "", map[string]string{"X-Rigo-Token": "wrong"}, nil, nil); resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("wrong token on a valid Host: got %d, want 401", resp.StatusCode)
 	}
 	if resp, _ := env.request("GET", statPath+"&token="+url.QueryEscape(appToken), "", nil, nil, nil); resp.StatusCode != http.StatusOK {
@@ -509,10 +509,10 @@ func TestBoundaryKeepsTokenAndSecretAuth(t *testing.T) {
 	if resp, _ := env.request("POST", "/api/internal/open", "", nil, nil, strings.NewReader(internalBody)); resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("internal channel without control secret: got %d, want 403", resp.StatusCode)
 	}
-	if resp, _ := env.request("POST", "/api/internal/open", "", map[string]string{"X-Typecraft-Control": "wrong"}, nil, strings.NewReader(internalBody)); resp.StatusCode != http.StatusForbidden {
+	if resp, _ := env.request("POST", "/api/internal/open", "", map[string]string{"X-Rigo-Control": "wrong"}, nil, strings.NewReader(internalBody)); resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("internal channel with a wrong control secret: got %d, want 403", resp.StatusCode)
 	}
-	resp, body := env.request("POST", "/api/internal/open", "", map[string]string{"X-Typecraft-Control": controlToken}, nil, strings.NewReader(internalBody))
+	resp, body := env.request("POST", "/api/internal/open", "", map[string]string{"X-Rigo-Control": controlToken}, nil, strings.NewReader(internalBody))
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("internal channel with the control secret: got %d, want 200 (%s)", resp.StatusCode, body)
 	}
@@ -534,7 +534,7 @@ func TestBoundaryDeniedRequestsHaveNoEffect(t *testing.T) {
 	})
 	foreignHost := "attacker.example:" + strconv.Itoa(env.port)
 	resp, _ := env.request("POST", "/api/save", foreignHost,
-		map[string]string{"X-Typecraft-Token": appToken, "Content-Type": "application/json"},
+		map[string]string{"X-Rigo-Token": appToken, "Content-Type": "application/json"},
 		nil, strings.NewReader(string(saveBody)))
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("denied save: got %d, want 403", resp.StatusCode)
@@ -547,7 +547,7 @@ func TestBoundaryDeniedRequestsHaveNoEffect(t *testing.T) {
 	// nothing and never echoes the secret.
 	internalBody, _ := json.Marshal(map[string]interface{}{"paths": []string{other}, "focus": false})
 	resp, body := env.request("POST", "/api/internal/open", foreignHost,
-		map[string]string{"X-Typecraft-Control": controlToken, "Content-Type": "application/json"},
+		map[string]string{"X-Rigo-Control": controlToken, "Content-Type": "application/json"},
 		nil, strings.NewReader(string(internalBody)))
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("denied internal open: got %d, want 403", resp.StatusCode)
@@ -629,7 +629,7 @@ func TestBoundaryDeniedRequestsHideDocumentContent(t *testing.T) {
 		"/",
 	}
 	for _, path := range paths {
-		resp, body := env.request("GET", path, foreign, map[string]string{"X-Typecraft-Token": appToken}, nil, nil)
+		resp, body := env.request("GET", path, foreign, map[string]string{"X-Rigo-Token": appToken}, nil, nil)
 		if resp.StatusCode != http.StatusForbidden {
 			t.Errorf("%s with a foreign host: got %d, want 403", path, resp.StatusCode)
 		}

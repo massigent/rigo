@@ -45,7 +45,7 @@ for (const scenario of cases) {
     await app.flush();
 
     assert.equal(app.pathLabel(), "/docs/new.md", "late boot must not erase the current path");
-    assert.equal(app.title(), "new.md — TypeCraft");
+    assert.equal(app.title(), "new.md — Rigo");
     assert.equal(app.status(), "● Salvato", "an old boot failure is not this document's error");
     assert.equal(app.value(), content);
     assert.equal(app.beforeUnloadBlocked(), false);

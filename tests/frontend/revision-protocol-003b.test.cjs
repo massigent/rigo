@@ -268,7 +268,7 @@ test("a late valid init does not replace a document adopted (Save As) while it w
   await app.flush();
 
   assert.equal(app.pathLabel(), "/docs/new.md", "the adopted path wins");
-  assert.equal(app.title(), "new.md — TypeCraft");
+  assert.equal(app.title(), "new.md — Rigo");
   assert.equal(app.status(), "● Salvato");
   assert.equal(app.value(), "boot document");
   assert.equal(app.beforeUnloadBlocked(), false);

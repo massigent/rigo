@@ -1,3 +1,3 @@
-module typecraft
+module rigo
 
 go 1.22

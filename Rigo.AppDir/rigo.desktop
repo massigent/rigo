@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Rigo
+Comment=Minimalist distraction-free Markdown editor
+Exec=rigo %F
+Icon=rigo
+Terminal=false
+Type=Application
+Categories=Office;WordProcessor;TextEditor;Utility;
+MimeType=text/markdown;text/plain;text/x-markdown;
+Keywords=markdown;editor;writing;typewriter;focus;
+StartupWMClass=Rigo

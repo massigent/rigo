@@ -1,4 +1,4 @@
-// Shared jsdom harness for the TypeCraft frontend tests.
+// Shared jsdom harness for the Rigo frontend tests.
 //
 // It loads the *real* page (web/index.html) and every real script of the page,
 // then drives the controller through DOM events only: there are no debug hooks

@@ -1,6 +1,6 @@
-# Notes for coding agents working on TypeCraft
+# Notes for coding agents working on Rigo
 
-TypeCraft is a single Go binary that embeds `web/` and serves the editor on a
+Rigo (formerly TypeCraft) is a single Go binary that embeds `web/` and serves the editor on a
 loopback HTTP port. This file records the verification commands, the packaging
 requirements and the repeatable release procedure, including the lessons that
 cost a red CI run to learn.
@@ -82,12 +82,22 @@ Properties of the automation, learned the hard way:
 - The whole chain was exercised successfully for v1.0.5: tag push → green
   workflow → release with verified assets, no manual intervention.
 
+## Licensing rules (do not regress these)
+
+- The app is **MIT** (`LICENSE`). Every bundled component must be redistributable; keep
+  `THIRD-PARTY.md` and `packaging/copyright` in sync whenever a dependency or font changes.
+- **Only OFL (or equally permissive) fonts may be bundled.** Never add a typeface whose vendor
+  forbids bundling in an editor — the v1.1.0 audit removed exactly such a set. New icons must be
+  original: `tools/icon` generates the current one from geometry, no third-party artwork.
+- Do not put other products' names in the UI, in theme/font identifiers or in package metadata;
+  comparative mentions belong in historical review documents only.
+
 ## Where to be extra careful (architecture invariants)
 
 - **HTTP boundary:** every request passes `localBoundaryMiddleware` (exact
   Host/Origin policy against the listener authority) before any handler. The
   UI token is delivered by the `/api/init` handshake — also in its 503 error
-  body — and travels on fetches as the `X-Typecraft-Token` header; the query
+  body — and travels on fetches as the `X-Rigo-Token` header; the query
   form is only for `EventSource` and `<img>`. Do not reintroduce the token in
   the launched browser URL (it was readable via `/proc/<pid>/cmdline`).
 - **Document-session protocol** (`web/static/js/app.js`): `docSession`,

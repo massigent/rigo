@@ -9,24 +9,24 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 def package(version, binary, icon, notice, output):
     info = {
-        "CFBundleIdentifier": "io.github.massigent.typecraft",
-        "CFBundleName": "TypeCraft",
-        "CFBundleDisplayName": "TypeCraft",
-        "CFBundleExecutable": "typecraft",
+        "CFBundleIdentifier": "io.github.massigent.rigo",
+        "CFBundleName": "Rigo",
+        "CFBundleDisplayName": "Rigo",
+        "CFBundleExecutable": "rigo",
         "CFBundlePackageType": "APPL",
         "CFBundleShortVersionString": version,
         "CFBundleVersion": version,
-        "CFBundleIconFile": "TypeCraft.icns",
+        "CFBundleIconFile": "Rigo.icns",
         "LSMinimumSystemVersion": "11.0",
     }
     with ZipFile(output, "w") as archive:
         for path, data, mode in (
             ("Info.plist", plistlib.dumps(info), 0o644),
-            ("MacOS/typecraft", Path(binary).read_bytes(), 0o755),
-            ("Resources/TypeCraft.icns", Path(icon).read_bytes(), 0o644),
+            ("MacOS/rigo", Path(binary).read_bytes(), 0o755),
+            ("Resources/Rigo.icns", Path(icon).read_bytes(), 0o644),
             ("Resources/NOTICE.txt", Path(notice).read_bytes(), 0o644),
         ):
-            member = ZipInfo("TypeCraft.app/Contents/" + path)
+            member = ZipInfo("Rigo.app/Contents/" + path)
             member.create_system = 3  # UNIX; preserve the executable bit in Finder.
             member.external_attr = (stat.S_IFREG | mode) << 16
             archive.writestr(member, data, compress_type=ZIP_DEFLATED)

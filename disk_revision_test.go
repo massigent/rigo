@@ -25,7 +25,7 @@ func (e *boundaryTestEnv) do(method, path, body string) (int, []byte, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("X-Typecraft-Token", appToken)
+	req.Header.Set("X-Rigo-Token", appToken)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := e.client.Do(req)
 	if err != nil {

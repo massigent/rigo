@@ -34,7 +34,7 @@ import (
 var embeddedWebFS embed.FS
 
 var (
-	version      = "1.0.6"
+	version      = "1.1.0"
 	activeFileMu sync.RWMutex
 	activePath   string
 	activeDir    string
@@ -161,7 +161,7 @@ func randomToken() string {
 	// A local secret must never degrade to a predictable value: if the system
 	// CSPRNG is unavailable there is no safe fallback, so fail hard.
 	if _, err := rand.Read(b); err != nil {
-		panic("typecraft: crypto/rand unavailable: " + err.Error())
+		panic("rigo: crypto/rand unavailable: " + err.Error())
 	}
 	return hex.EncodeToString(b)
 }
@@ -225,7 +225,7 @@ func cleanAbs(p string) (string, error) {
 // isSafeMarkdownPath allows only markdown-ish files. Blocks dotfiles inside
 // hidden dirs? No — allows them, but blocks executables and null bytes.
 // This prevents /api/save from overwriting ~/.bashrc or binaries by mistake
-// while keeping the workspace open (Typora-style: any .md anywhere).
+// while keeping the workspace open: any .md anywhere.
 func isSafeMarkdownPath(abs string) bool {
 	ext := strings.ToLower(filepath.Ext(abs))
 	switch ext {
@@ -258,7 +258,7 @@ func checkToken(r *http.Request) bool {
 	// Token via header (fetch) or query (?token= for EventSource and <img>,
 	// which cannot set headers). The launched browser URL itself carries no
 	// token: the page receives it through the /api/init handshake.
-	if tokenEqual(r.Header.Get("X-Typecraft-Token"), appToken) {
+	if tokenEqual(r.Header.Get("X-Rigo-Token"), appToken) {
 		return true
 	}
 	return tokenEqual(r.URL.Query().Get("token"), appToken)
@@ -463,8 +463,32 @@ func newHTTPHandler(mux http.Handler, boundary *httpBoundary) http.Handler {
 	return securityHeaders(localBoundaryMiddleware(boundary, mux))
 }
 
+// migrateLegacyConfig carries the previous release's state over to the new
+// config directory, so an upgrade does not lose the recents list. It only acts
+// when the new file is absent and the old one exists; every failure is ignored
+// (a missing migration is harmless, a crash on startup is not).
+func migrateLegacyConfig() {
+	home := getHomeDir()
+	newDir := filepath.Join(home, ".rigo")
+	oldDir := filepath.Join(home, ".typecraft")
+	for _, name := range []string{"recents.json"} {
+		dst := filepath.Join(newDir, name)
+		src := filepath.Join(oldDir, name)
+		if _, err := os.Stat(dst); err == nil {
+			continue
+		}
+		data, err := os.ReadFile(src)
+		if err != nil {
+			continue
+		}
+		_ = os.MkdirAll(newDir, 0o755)
+		_ = atomicWrite(dst, data)
+	}
+}
+
 func initRecents() {
-	cfgDir := filepath.Join(getHomeDir(), ".typecraft")
+	migrateLegacyConfig()
+	cfgDir := filepath.Join(getHomeDir(), ".rigo")
 	_ = os.MkdirAll(cfgDir, 0o755)
 	recentsPath = filepath.Join(cfgDir, "recents.json")
 
@@ -536,7 +560,7 @@ func buildWorkspaceTree(root string, depth int) (*FileNode, error) {
 		return node, nil
 	}
 
-	// Deterministic order (Typora-style file tree).
+	// Deterministic order (directories first, case-insensitive).
 	sort.Slice(entries, func(i, j int) bool {
 		a, b := entries[i], entries[j]
 		if a.IsDir() != b.IsDir() {
@@ -582,7 +606,7 @@ func atomicWrite(filename string, data []byte) error {
 		mode = fi.Mode().Perm()
 	}
 
-	tmpFile, err := os.CreateTemp(dir, ".typecraft_tmp_*")
+	tmpFile, err := os.CreateTemp(dir, ".rigo_tmp_*")
 	if err != nil {
 		return err
 	}
@@ -1281,7 +1305,7 @@ func openDesktopWindow(targetURL string, forceApp bool) {
 		}
 	}
 
-	profileDir := filepath.Join(getHomeDir(), ".typecraft", "browser-profile")
+	profileDir := filepath.Join(getHomeDir(), ".rigo", "browser-profile")
 	_ = os.MkdirAll(profileDir, 0o700)
 
 	appLaunched := false
@@ -1293,8 +1317,8 @@ func openDesktopWindow(targetURL string, forceApp bool) {
 				args = []string{
 					"--user-data-dir=" + profileDir,
 					"--app=" + targetURL,
-					"--class=TypeCraft",
-					"--name=TypeCraft",
+					"--class=Rigo",
+					"--name=Rigo",
 					"--no-first-run",
 					"--no-default-browser-check",
 				}
@@ -1377,9 +1401,9 @@ func securityHeaders(next http.Handler) http.Handler {
 	})
 }
 
-// --- Single instance (rubato a Ferrite: lockfile + TCP forward) ---
+// --- Single instance (lockfile + TCP forward) ---
 func instanceLockPath() string {
-	return filepath.Join(getHomeDir(), ".typecraft", "instance.lock")
+	return filepath.Join(getHomeDir(), ".rigo", "instance.lock")
 }
 
 // ---------------------------------------------------------------- Event hub
@@ -1490,7 +1514,7 @@ func forwardToPrimary(args []string) bool {
 		return false
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Typecraft-Control", info.Control)
+	req.Header.Set("X-Rigo-Control", info.Control)
 
 	client := &http.Client{Timeout: 3 * time.Second}
 	resp, err := client.Do(req)
@@ -1511,7 +1535,7 @@ func handleInternalOpen(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if controlToken == "" || !tokenEqual(r.Header.Get("X-Typecraft-Control"), controlToken) {
+	if controlToken == "" || !tokenEqual(r.Header.Get("X-Rigo-Control"), controlToken) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -1546,7 +1570,7 @@ func handleInternalOpen(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeInstanceLock(port int) {
-	cfgDir := filepath.Join(getHomeDir(), ".typecraft")
+	cfgDir := filepath.Join(getHomeDir(), ".rigo")
 	_ = os.MkdirAll(cfgDir, 0o755)
 	data, _ := json.Marshal(instanceInfo{Port: port, Control: controlToken})
 	_ = os.WriteFile(instanceLockPath(), data, 0o600)
@@ -2005,8 +2029,8 @@ func setupMux() *http.ServeMux {
 			http.Error(w, "invalid new path", http.StatusBadRequest)
 			return
 		}
-		// Never rewrite the name the user typed: Typora's "it keeps forcing .md
-		// back" bug (fixed upstream in 1.13.7) came from exactly this guess.
+		// Never rewrite the name the user typed: silently appending the
+		// extension back is the classic way to lose a deliberate name.
 		if !isSafeMarkdownPath(newAbs) {
 			http.Error(w, "forbidden: save as .md, .markdown, .txt, .mdown, .mkd, .mdwn or .mdx", http.StatusBadRequest)
 			return
@@ -2356,16 +2380,16 @@ func main() {
 	flag.Parse()
 
 	if *verFlag {
-		fmt.Printf("TypeCraft v%s — Minimalist Markdown Editor\n", version)
+		fmt.Printf("Rigo v%s — Minimalist Markdown Editor\n", version)
 		return
 	}
 	appMode = *appFlag
 	noBrowser = *noBrowserFlag
 
 	args := flag.Args()
-	// Single-instance: se c'e' gia' un TypeCraft, inoltra il file e esci (come Ferrite).
+	// Single instance: if a Rigo is already running, forward the file and exit.
 	if forwardToPrimary(args) {
-		fmt.Println("TypeCraft e' gia' in esecuzione — file inoltrato all'istanza esistente.")
+		fmt.Println("Rigo e' gia' in esecuzione — file inoltrato all'istanza esistente.")
 		return
 	}
 	if len(args) > 0 {
@@ -2397,7 +2421,7 @@ func main() {
 	listenAddr := fmt.Sprintf("127.0.0.1:%d", *portFlag)
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error starting TypeCraft server: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error starting Rigo server: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -2410,12 +2434,12 @@ func main() {
 	writeInstanceLock(actualPort)
 	defer removeInstanceLock()
 	// Porta scritta anche su file per modalita' --no-browser / Windows GUI.
-	portFilePath := filepath.Join(getHomeDir(), ".typecraft", "port")
+	portFilePath := filepath.Join(getHomeDir(), ".rigo", "port")
 	_ = os.WriteFile(portFilePath, []byte(strconv.Itoa(actualPort)), 0o644)
 	defer os.Remove(portFilePath)
 
 	fmt.Println("=====================================================")
-	fmt.Printf(" TypeCraft v%s — Minimalist Markdown Editor\n", version)
+	fmt.Printf(" Rigo v%s — Minimalist Markdown Editor\n", version)
 	fmt.Printf(" Server running on: %s\n", appURL)
 	if activePath != "" {
 		fmt.Printf(" Active file:       %s\n", activePath)
@@ -2449,7 +2473,7 @@ func main() {
 	go func() {
 		<-stopChan
 		cancelIdleShutdown()
-		fmt.Println("\nShutting down TypeCraft...")
+		fmt.Println("\nShutting down Rigo...")
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		_ = server.Shutdown(ctx)

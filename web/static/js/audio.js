@@ -1,9 +1,9 @@
-// TypeCraft — Typewriter Mechanical Sound Synthesizer (Web Audio API)
+// Rigo — Typewriter Mechanical Sound Synthesizer (Web Audio API)
 // Provides tactile auditory feedback without any external audio files.
 
 class TypewriterAudio {
   constructor() {
-    this.enabled = localStorage.getItem("typecraft.sound") === "1";
+    this.enabled = localStorage.getItem("rigo.sound") === "1";
     this.ctx = null;
   }
 
@@ -19,7 +19,7 @@ class TypewriterAudio {
 
   toggle() {
     this.enabled = !this.enabled;
-    localStorage.setItem("typecraft.sound", this.enabled ? "1" : "0");
+    localStorage.setItem("rigo.sound", this.enabled ? "1" : "0");
     if (this.enabled) {
       this.init();
       this.playKey();

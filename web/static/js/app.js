@@ -1,4 +1,4 @@
-// TypeCraft — Core Application Controller
+// Rigo — Core Application Controller
 
 (function () {
   "use strict";
@@ -109,8 +109,8 @@
     defaultDir: "",
     isDirty: false,
     viewMode: "raw", // "raw" | "live" | "split"
-    theme: "ia-light",
-    font: "ia-mono",
+    theme: "light",
+    font: "plex-mono",
     saveTimer: null,
     typingTimer: null,
     previewTimer: null,
@@ -288,7 +288,7 @@
 
   function apiHeaders(extra) {
     const h = Object.assign({ "Content-Type": "application/json" }, extra || {});
-    if (state.appToken) h["X-Typecraft-Token"] = state.appToken;
+    if (state.appToken) h["X-Rigo-Token"] = state.appToken;
     return h;
   }
 
@@ -304,7 +304,7 @@
   // GET-style fetch with header authentication.
   function apiGet(path) {
     const h = {};
-    if (state.appToken) h["X-Typecraft-Token"] = state.appToken;
+    if (state.appToken) h["X-Rigo-Token"] = state.appToken;
     return fetch(path, { headers: h });
   }
 
@@ -493,74 +493,120 @@
   }
 
   function getWelcomeMarkdown() {
-    return `# Benvenuto in TypeCraft ✍️
+    return `# Benvenuto in Rigo ✍️
 
-L'editor Markdown minimalista definitivo per tutte le piattaforme.
-Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode** di *iA Writer* con l'eleganza dell'**editing Live Preview** di *Typora*.
-
----
-
-## 🎯 Il Meglio di Due Mondi
-
-1. **Macchina da Scrivere Autentica (iA Writer)**:
-   - La linea attiva rimane comodamente **fissata al centro** dello schermo.
-   - Prova a digitare: la pagina scorre sotto le tue dita in modo fluido.
-   - Suono meccanico opzionale: premi \`Ctrl+Alt+T\` per sentire il tocco tattile.
-
-2. **Focus Mode a Sfocatura Graduale (iA Writer & PubCraft)**:
-   - Premi \`Ctrl+D\` per attivare il Focus Mode.
-   - Scegli tra **Focus Frase** (isola il singolo pensiero) o **Focus Paragrafo**.
-   - Tutto il testo circostante viene dolcemente sfocato per azzerare ogni distrazione.
-
-3. **Live Preview Ibrida & Tabelle (Typora)**:
-   - Premi \`Ctrl+2\` per passare all'anteprima fluida, o \`Ctrl+3\` per la vista Dual Split.
-   - Elenchi puntati interattivi con checkbox cliccabili:
-     - [x] Analisi profonda di iA Writer e Typora
-     - [x] Studio dell'architettura single-binary di PubCraft
-     - [ ] Scrivere la prossima grande opera in Markdown
-   - Formattazione istantanea di tabelle:
-
-| Funzione | TypeCraft | iA Writer | Typora |
-| :--- | :--- | :--- | :--- |
-| Typewriter Centered | ✅ Fluido rAF | ✅ Presente | ⚠️ Rigido |
-| Focus Frase/Paragrafo | ✅ 3 Livelli | ✅ Presente | ❌ Assente |
-| Live Preview Typora | ✅ Istantaneo | ❌ Separato | ✅ Leader |
-| Dimensione Binario | ⚡ <15 MB | ~30 MB | >250 MB |
+**Rigo** è un editor Markdown essenziale: scrivi in testo semplice, i tuoi file
+restano file normali sul disco e non serve alcun account.
 
 ---
 
-## ⌨️ Scorciatoie da Tastiera Rapide
+## 🎯 Tre modi di scrivere
 
-- **Ctrl+S**: Salva file istantaneamente
-- **Ctrl+D**: Alterna Focus Mode (Spento / Frase / Paragrafo)
-- **Ctrl+T**: Alterna scorrimento Macchina da Scrivere
-- **Ctrl+1 / Ctrl+2 / Ctrl+3**: Focus Raw / Live Preview / Dual Split
-- **Ctrl+Shift+O**: Apri/Chiudi Indice Documento (Outline TOC)
-- **F11**: Modalità Zen Schermo Intero
+1. **Rigo fisso al centro (typewriter)**
+   - La riga attiva resta ferma al centro dello schermo: la pagina scorre sotto
+     le tue dita, senza mai perdere il punto in cui stai scrivendo.
+   - Si attiva e disattiva con \`Ctrl+T\`.
 
-*Inizia a scrivere cancellando questo testo o aprendo un tuo file dal menu in alto a destra.*
+2. **Focus: frase o paragrafo**
+   - \`Ctrl+D\` alterna *Spento → Frase → Paragrafo*: il resto del testo si
+     attenua e resta leggibile solo ciò che stai scrivendo.
+
+3. **Vista del documento**
+   - \`Ctrl+1\` solo testo · \`Ctrl+2\` anteprima · \`Ctrl+3\` vista affiancata.
+   - Le liste di attività sono cliccabili e si sincronizzano col Markdown:
+
+     - [x] Scrivere in Markdown puro
+     - [x] Anteprima formattata
+     - [ ] La prossima grande opera
+
+   - Le tabelle si leggono bene anche nell'anteprima:
+
+| Funzione | Rigo |
+| :--- | :--- |
+| Formato dei file | Markdown su disco, nessun account |
+| Finestra | Un singolo eseguibile, interfaccia locale |
+| Salvataggi | Atomici, con rilevamento modifiche esterne |
+
+---
+
+## ⌨️ Scorciatoie
+
+- **Ctrl+S**: salva subito · **Ctrl+Shift+S**: salva una copia
+- **Ctrl+O**: apri un file · **Ctrl+N**: nuovo documento
+- **Ctrl+D**: focus frase/paragrafo · **Ctrl+T**: typewriter
+- **Ctrl+Shift+O**: indice del documento · **F11**: schermo intero
+
+*Inizia a scrivere cancellando questo testo, oppure apri un tuo documento dal
+menu in alto a destra.*
 `;
   }
 
   // ------------------------------------------------------------- Preferences
+  //
+  // One-time migration from the previous release: both the storage keys
+  // ("typecraft.*") and some stored values (theme and font identifiers, which
+  // changed with the new typefaces) are different. Old values are mapped to
+  // their replacement and the legacy key is dropped; anything unrecognised
+  // simply falls back to the default, never to an unknown class name.
+  const LEGACY_VALUE_MAP = {
+    "rigo.theme": {
+      "ia-light": "light",
+      "typora-night": "night",
+    },
+    "rigo.font": {
+      "ia-mono": "plex-mono",
+      "ia-duo": "plex-sans",
+      "ia-quattro": "plex-serif",
+    },
+  };
+
+  function migratePreferences() {
+    const keys = ["theme", "font", "viewMode", "typewriter", "focusDim", "sound"];
+    keys.forEach((name) => {
+      const nextKey = "rigo." + name;
+      const oldKey = "typecraft." + name;
+      let value = null;
+      try {
+        value = localStorage.getItem(nextKey);
+        if (value === null) {
+          value = localStorage.getItem(oldKey);
+          if (value !== null) {
+            const mapped = (LEGACY_VALUE_MAP[nextKey] || {})[value];
+            localStorage.setItem(nextKey, mapped || value);
+            localStorage.removeItem(oldKey);
+          }
+        }
+      } catch (_) {
+        return;
+      }
+      const mapped = value === null ? undefined : (LEGACY_VALUE_MAP[nextKey] || {})[value];
+      if (mapped) {
+        try {
+          localStorage.setItem(nextKey, mapped);
+        } catch (_) {}
+      }
+    });
+  }
+
   function loadPreferences() {
-    state.theme = localStorage.getItem("typecraft.theme") || "ia-light";
-    state.font = localStorage.getItem("typecraft.font") || "ia-mono";
-    state.viewMode = localStorage.getItem("typecraft.viewMode") || "raw";
+    migratePreferences();
+    state.theme = localStorage.getItem("rigo.theme") || "light";
+    state.font = localStorage.getItem("rigo.font") || "plex-mono";
+    state.viewMode = localStorage.getItem("rigo.viewMode") || "raw";
   }
 
   function applyTheme(themeName) {
     state.theme = themeName;
-    localStorage.setItem("typecraft.theme", themeName);
+    localStorage.setItem("rigo.theme", themeName);
     document.body.className = document.body.className
       .replace(/theme-[a-z0-9-]+/g, "")
       .trim();
     document.body.classList.add(`theme-${themeName}`);
 
     const icons = {
-      "ia-light": "☀️",
+      "light": "☀️",
       "sepia": "📜",
-      "typora-night": "🌙",
+      "night": "🌙",
       "oled-black": "⬛",
     };
     if (themeCurrentIcon) themeCurrentIcon.textContent = icons[themeName] || "☀️";
@@ -568,16 +614,16 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
 
   function applyFont(fontName) {
     state.font = fontName;
-    localStorage.setItem("typecraft.font", fontName);
+    localStorage.setItem("rigo.font", fontName);
     document.body.className = document.body.className
       .replace(/font-[a-z0-9-]+/g, "")
       .trim();
     document.body.classList.add(`font-${fontName}`);
 
     const labels = {
-      "ia-mono": "Mono",
-      "ia-duo": "Duo",
-      "ia-quattro": "Quattro",
+      "plex-mono": "Mono",
+      "plex-sans": "Sans",
+      "plex-serif": "Serif",
       "garamond": "Garamond",
       "lora": "Lora",
       "system-sans": "Sans",
@@ -593,7 +639,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
 
   function applyViewMode(mode) {
     state.viewMode = mode;
-    localStorage.setItem("typecraft.viewMode", mode);
+    localStorage.setItem("rigo.viewMode", mode);
 
     document.body.classList.remove("mode-raw", "mode-live", "mode-split");
     document.body.classList.add(`mode-${mode}`);
@@ -769,7 +815,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     statsPill?.addEventListener("click", showStatsModal);
     statsModalClose?.addEventListener("click", () => statsModal.classList.add("hidden"));
 
-    // Formatting toolbar buttons (PubCraft style)
+    // Formatting toolbar buttons
     [
       "tbBold", "tbItalic", "tbUnderline", "tbCenter",
       "tbH1", "tbH2", "tbH3", "tbUl", "tbOl", "tbTask",
@@ -918,7 +964,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     }
   }
 
-  // ------------------------------------------------------------- Text Formatting Tools (PubCraft style)
+  // ------------------------------------------------------------- Text formatting tools
   function replaceRange(start, end, text, selectStart, selectEnd) {
     if (state.readOnly) return; // protected document: no programmatic edits
     editor.focus();
@@ -1189,7 +1235,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     updateCursorPosition();
     window.outline.update(outlineDelayMs());
     scheduleStats();
-    // Debounce preview: marked.parse su doc intero a ogni tasto laggava (Typora rende incrementale).
+    // Debounce preview: parsing the whole document on every keystroke lagged.
     clearTimeout(state.previewTimer);
     if (state.viewMode === "live" || state.viewMode === "split") {
       state.previewTimer = setTimeout(() => {
@@ -1353,7 +1399,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
     const name = state.currentPath ? baseName(state.currentPath) : "Senza titolo.md";
     docTitle.textContent = name;
     statusFilePath.textContent = state.currentPath || "Senza titolo";
-    document.title = `${name} — TypeCraft`;
+    document.title = `${name} — Rigo`;
   }
 
   function updateFocusDimUI(mode) {
@@ -1639,7 +1685,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
   // ------------------------------------------------- External change watchdog
   //
   // A document can be edited from another machine on a shared folder, by git, or
-  // by any other editor. Typora fixed exactly this in 1.13.7; TypeCraft only
+  // by any other editor. Rigo only
   // noticed at save time, and by then the choice was "overwrite or lose".
   function startExternalWatch() {
     if (state.watchTimer) return;
@@ -2140,7 +2186,7 @@ Unisce l'immersione profonda della **macchina da scrivere** e del **Focus Mode**
         if (!looksLikeExtension) {
           name += ".md";
         } else {
-          if (!confirm(`TypeCraft salva solo documenti Markdown. Salvare come "${name}.md"?`)) {
+          if (!confirm(`Rigo salva solo documenti Markdown. Salvare come "${name}.md"?`)) {
             fsFileNameInput?.focus();
             return;
           }

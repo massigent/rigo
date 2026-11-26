@@ -1,10 +1,14 @@
-# TypeCraft ✍️
+# Rigo ✍️
 
 **A local-first Markdown editor for focused writing.**
 
+> Rigo was previously called TypeCraft. The rename came with a licensing cleanup: the bundled fonts
+> are now IBM Plex (SIL OFL), and the project is published under the MIT license. Nothing changes for
+> your documents: the same Markdown files, the same folders, and your recents are migrated on first start.
+
 Write in plain Markdown, then switch between source, rendered preview, and a synchronized split view. Typewriter scrolling and sentence or paragraph focus keep the current passage in view. Your documents stay in ordinary files on disk; no account is required. A single Go executable serves the interface in your browser.
 
-[Download for Linux, Windows and macOS](https://github.com/massigent/typecraft/releases/tag/v1.0.6) · [Release notes](docs/releases/v1.0.6.md) · [Italiano](README.it.md)
+[Download for Linux, Windows and macOS](https://github.com/massigent/rigo/releases/tag/v1.1.0) · [Release notes](docs/releases/v1.1.0.md) · [Italiano](README.it.md)
 
 ---
 
@@ -13,7 +17,7 @@ Write in plain Markdown, then switch between source, rendered preview, and a syn
 ### Focused writing
 - **Continuous Typewriter Scrolling**: The active line remains fixed vertically at center (`45vh`). The document moves beneath your typing fingers smoothly using sub-pixel caret tracking (`requestAnimationFrame` + invisible mirror offset calculation).
 - **3-Level Focus Mode (Sentence / Paragraph / Off)**: Press `Ctrl+D` to isolate your current sentence or paragraph. Surrounding text gently fades out (`30% opacity`), eliminating cognitive clutter.
-- **Genuine Typography Included**: Embedded authentic **iA Writer Mono**, **iA Writer Duo**, and **iA Writer Quattro** fonts, plus classical editorial serif typefaces (**EB Garamond**, **Lora**).
+- **Genuine Typography Included**: Bundled **IBM Plex Mono**, **IBM Plex Sans** and **IBM Plex Serif**, plus the editorial serif faces **EB Garamond** and **Lora** — all under the SIL Open Font License (see `THIRD-PARTY.md`). The typefaces are embedded in the binary: no system font required, no network request.
 - **Tactile Typewriter Mechanical Sound (Web Audio API)**: Toggle organic mechanical key clicks and carriage return bells with `Ctrl+Alt+T` (100% synthesized in code, zero audio assets needed).
 - **Disappearing Zen Chrome**: As you type, toolbars and counters fade out completely.
 
@@ -35,10 +39,10 @@ Write in plain Markdown, then switch between source, rendered preview, and a syn
 
 ## 🎨 4 Signature Themes
 
-1. **☀️ iA Clean (Light)**: Crisp white paper, deep charcoal ink, iA electric blue caret.
-2. **📜 Sepia Paper (Warm)**: Calming warm book tone for long reading and writing sessions.
-3. **🌙 Typora Night (Slate)**: Dark slate gray for low-light environments.
-4. **⬛ OLED Pure Black**: True `#000000` with luminous neon accents.
+1. **☀️ Carta (chiaro)**: Crisp white paper, deep charcoal ink, electric blue caret.
+2. **📜 Sepia (caldo)**: Calming warm book tone for long reading and writing sessions.
+3. **🌙 Notte (ardesia)**: Dark slate gray for low-light environments.
+4. **⬛ OLED (nero puro)**: True `#000000` with luminous neon accents.
 
 ---
 
@@ -70,7 +74,7 @@ Write in plain Markdown, then switch between source, rendered preview, and a syn
 
 ### Quick Start (Linux):
 ```bash
-./typecraft
+./rigo
 ```
 
 ### Cross-Compilation for All Platforms:
@@ -82,16 +86,16 @@ make build
 make cross-compile
 ```
 Pre-built binaries will be placed in `dist/`:
-- `typecraft-linux-amd64`
-- `typecraft-linux-arm64`
-- `typecraft-macos-amd64`
-- `typecraft-macos-arm64`
-- `typecraft-windows-amd64.exe`
+- `rigo-linux-amd64`
+- `rigo-linux-arm64`
+- `rigo-macos-amd64`
+- `rigo-macos-arm64`
+- `rigo-windows-amd64.exe`
 
 ### AppImage packaging (Linux):
 `make appimage` requires `appimagetool` on `PATH` (or an explicit `APPIMAGETOOL=/path/to/appimagetool`).
 It always builds a fresh Linux amd64 ELF, stages the desktop file, icon and `AppRun` in a private
-temporary directory under `dist/`, and publishes `dist/TypeCraft-x86_64.AppImage` only after success:
+temporary directory under `dist/`, and publishes `dist/Rigo-x86_64.AppImage` only after success:
 
 ```bash
 make appimage
@@ -101,7 +105,7 @@ make appimage APPIMAGETOOL=/path/to/appimagetool DIST_DIR=release
 ```
 
 `make install-appdir` builds a fresh Linux amd64 binary at
-`TypeCraft.AppDir/usr/bin/typecraft` for local desktop testing; that ignored file is not used by the AppImage target.
+`Rigo.AppDir/usr/bin/rigo` for local desktop testing; that ignored file is not used by the AppImage target.
 Failed builds remove their staging directory and partial AppImage, leaving any previous artifact intact.
 
 ### Native Linux packages (x86_64)
@@ -110,34 +114,42 @@ Failed builds remove their staging directory and partial AppImage, leaving any p
 
 ```bash
 # Ubuntu
-sudo apt install ./dist/typecraft_1.0.6-1_amd64.deb
+sudo apt install ./dist/rigo_1.1.0-1_amd64.deb
 
 # Fedora
-sudo dnf install ./dist/typecraft-1.0.6-1.x86_64.rpm
+sudo dnf install ./dist/rigo-1.1.0-1.x86_64.rpm
 
 # AppImage (no installation required)
-chmod +x dist/TypeCraft-x86_64.AppImage
-./dist/TypeCraft-x86_64.AppImage
+chmod +x dist/Rigo-x86_64.AppImage
+./dist/Rigo-x86_64.AppImage
 ```
 
-On a system without FUSE, launch the AppImage with `APPIMAGE_EXTRACT_AND_RUN=1`. After installing the DEB or RPM, open **TypeCraft** from the applications menu or run `typecraft`.
+On a system without FUSE, launch the AppImage with `APPIMAGE_EXTRACT_AND_RUN=1`. After installing the DEB or RPM, open **Rigo** from the applications menu or run `rigo`.
 
 ### Windows and macOS packages
 
-Download the Windows x64 setup from [Releases](https://github.com/massigent/typecraft/releases/tag/v1.0.6) and run it from your Windows account. On macOS, download the ZIP for Apple Silicon (`arm64`) or Intel (`amd64`), extract it, and move `TypeCraft.app` to Applications. These builds are not signed with a distribution certificate or notarized.
+Download the Windows x64 setup from [Releases](https://github.com/massigent/rigo/releases/tag/v1.1.0) and run it from your Windows account. On macOS, download the ZIP for Apple Silicon (`arm64`) or Intel (`amd64`), extract it, and move `Rigo.app` to Applications. These builds are not signed with a distribution certificate or notarized.
 
 To cross-build on Linux, run `make windows-installer` (requires NSIS and `icotool`) or `make macos-packages` (requires Python 3 and `png2icns`). Run `sh tests/desktop-packaging-smoke.sh` after both builds to inspect the outputs with 7-Zip and Python.
 
 ---
 
 ## 📄 License
-MIT License. Created with craftsmanship for writers and programmers.
+
+Rigo is released under the [MIT license](LICENSE). Bundled third-party components (fonts, the
+Markdown parser, the Go standard library) keep their own licenses and are listed with their full
+texts in [THIRD-PARTY.md](THIRD-PARTY.md); the same notice ships inside every package.
+
+Rigo is not affiliated with any other editor. Product names of other editors appear only in the
+historical review documents (`REVIEW-*.md`).
+
+Created with craftsmanship for writers and programmers.
 
 ---
 
 ## 🔧 What changed in 1.0.2
 
-A review pass against real iA Writer and Typora builds fixed the following:
+A review pass against real builds of established editors fixed the following:
 
 **Correctness / data safety**
 - **Single-instance forwarding now works**: opening a second file from the file manager used to make the new process exit while the running window never learned about it (the path was written as raw text to the HTTP port). The primary now receives it over an authenticated control channel and the UI opens it via Server-Sent Events.
@@ -151,7 +163,7 @@ A review pass against real iA Writer and Typora builds fixed the following:
 **Feature fixes**
 - **Task list checkboxes toggle the exact marker**: each Markdown task checkbox is mapped through Marked's own token tree to the precise marker in the buffer (bulleted, numbered, nested, quoted and duplicate tasks, including `[X]`). Prose `[x]`, HTML authors, inline/fenced/indented code and stale previews cannot shift or authorise an edit; ignored clicks do not dirty the document, and read-only tasks are disabled.
 - **Checkmark visibility** (a `::after` on an `<input>` never renders) and **Focus dimming text no longer drifts** away from the caret (the highlighted line had a heavier weight, which changed glyph widths).
-- **Links open in the external browser** instead of navigating the editor away, and links to other local `.md` files open inside TypeCraft.
+- **Links open in the external browser** instead of navigating the editor away, and links to other local `.md` files open inside Rigo.
 - **Local images** now resolve relative to the document (`/api/asset`), with a broken-image placeholder.
 - **Math** is stashed before Markdown parsing, so `$x_1 * y_2$` is no longer mangled into emphasis; block math no longer leaves stray empty paragraphs.
 - **Theme/font/typewriter/focus/sound state is restored** in the HUD on launch.
@@ -163,6 +175,26 @@ A review pass against real iA Writer and Typora builds fixed the following:
 **Engineering**
 - Server gains `ReadHeaderTimeout`/`IdleTimeout`, security headers and `/api/events`, `/api/asset`, `/api/internal/open`.
 - 6 new regression tests (`go test -race`).
+
+---
+
+## 🔧 What changed in 1.1.0 — Rigo
+
+**The editor is now called Rigo** and the public release is MIT-licensed, with the third-party audit
+that a public release requires. Full detail in [docs/releases/v1.1.0.md](docs/releases/v1.1.0.md).
+
+- **Fonts replaceable and redistributable**: the bundled typefaces are now **IBM Plex Mono / Sans /
+  Serif** (SIL OFL 1.1). The previous fonts came from a text-editor vendor whose terms forbid
+  bundling them in another editor, so they were removed — no visual regression: IBM Plex is the same
+  type family lineage, and the bundled font payload drops from 425 KB to 183 KB.
+- **Licensing**: `LICENSE` (MIT) and `THIRD-PARTY.md` (OFL texts, marked, Markdown, Go standard
+  library) are now in the repository and inside every package (`packaging/copyright`).
+- **New logo**: an original, generated icon (`tools/icon`) — three text lines with the middle one
+  centred and accented, the product's own idea. Multi-resolution `.ico` and `.icns` are built from it.
+- **Themes renamed** to neutral names: *Carta*, *Sepia*, *Notte*, *OLED*. Stored preferences,
+  recents (`~/.typecraft` → `~/.rigo`) and the instance lock are migrated automatically on first start.
+- **API headers** are `X-Rigo-Token` / `X-Rigo-Control`; the single-instance lock, the browser profile
+  and the port file now live in `~/.rigo`.
 
 ---
 
@@ -267,10 +299,10 @@ binary probed over HTTP). Full detail in `REVIEW-1.0.3.md`.
   the directory entry too.
 - **"Save as" no longer overwrites silently**: the backend answers `409` and only replaces with
   `overwrite: true`, which the UI sends after an explicit confirmation.
-- **The extension you type is no longer rewritten** (the bug Typora fixed in 1.13.7): unsupported
+- **The extension you type is no longer rewritten** (a bug other editors shipped for years): unsupported
   extensions get a `400` listing what is allowed, with one explicit question when the name really looks
   like a file type.
-- **External change watchdog** (`/api/stat`, every 5 s — Typora 1.13.7): a clean buffer reloads
+- **External change watchdog** (`/api/stat`, every 5 s): a clean buffer reloads
   (`● Reloaded from disk`), a dirty one shows `⚠️ Changed on disk` and not a single typed line is
   touched.
 - **Saves and conflicts use opaque content revisions** (`sha256:<hex>` of the file bytes) instead of
@@ -318,7 +350,7 @@ binary probed over HTTP). Full detail in `REVIEW-1.0.3.md`.
 
 ---
 
-## 🗺️ Roadmap (gaps vs iA Writer / Typora)
+## 🗺️ Roadmap
 
 - Bundle KaTeX for real math typesetting (and Mermaid for diagrams).
 - Find & replace in document (with regex), and a word-count target.

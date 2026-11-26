@@ -197,7 +197,7 @@ test("save a copy writes a new document without touching the protected source", 
   await app.flush();
 
   assert.equal(app.pathLabel(), "/docs/copy.md");
-  assert.equal(app.title(), "copy.md — TypeCraft");
+  assert.equal(app.title(), "copy.md — Rigo");
   assert.equal(app.editor.readOnly, false, "the copy is a normal writable document");
   assert.equal(app.status(), "● Salvato");
   assert.equal(app.beforeUnloadBlocked(), false);

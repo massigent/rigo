@@ -1,4 +1,4 @@
-// TypeCraft — Focus Dimming Engine (iA Writer & PubCraft Style)
+// Rigo — Focus Dimming Engine
 // Focuses on current sentence or paragraph while gently dimming out the rest.
 //
 // Rendering is incremental: the backdrop keeps three persistent spans and, on
@@ -12,7 +12,7 @@ class FocusDimEngine {
   constructor(editor, backdrop) {
     this.editor = editor;
     this.backdrop = backdrop;
-    this.mode = localStorage.getItem("typecraft.focusDim") || "off"; // "off" | "sentence" | "paragraph"
+    this.mode = localStorage.getItem("rigo.focusDim") || "off"; // "off" | "sentence" | "paragraph"
     if (!["off", "sentence", "paragraph"].includes(this.mode)) {
       this.mode = "off";
     }
@@ -30,7 +30,7 @@ class FocusDimEngine {
       this.mode = "off";
     }
 
-    localStorage.setItem("typecraft.focusDim", this.mode);
+    localStorage.setItem("rigo.focusDim", this.mode);
     this.applyMode();
     return this.mode;
   }

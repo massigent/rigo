@@ -1,25 +1,25 @@
-/* TypeCraft — Aesthetic Minimalist Markdown Engine */
+/* Rigo — Aesthetic Minimalist Markdown Engine */
 
 /* ------------------------------------------------------------- 1. Fonts */
 @font-face {
-  font-family: 'iA Writer Mono';
-  src: url('/static/fonts/iAWriterMono.ttf') format('truetype');
+  font-family: 'IBM Plex Mono';
+  src: url('/static/fonts/IBMPlexMono-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'iA Writer Duo';
-  src: url('/static/fonts/iAWriterDuo.ttf') format('truetype');
+  font-family: 'IBM Plex Sans';
+  src: url('/static/fonts/IBMPlexSans-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'iA Writer Quattro';
-  src: url('/static/fonts/iAWriterQuattro.ttf') format('truetype');
+  font-family: 'IBM Plex Serif';
+  src: url('/static/fonts/IBMPlexSerif-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -51,7 +51,7 @@
 }
 
 /* iA Clean (Light) */
-body.theme-ia-light {
+body.theme-light {
   --bg: #fcfcfc;
   --fg: #1a1a1a;
   --fg-secondary: #707070;
@@ -88,8 +88,8 @@ body.theme-sepia {
   --shadow: 0 4px 20px rgba(44, 37, 30, 0.08);
 }
 
-/* Typora Night (Slate) */
-body.theme-typora-night {
+/* Notte (ardesia) */
+body.theme-night {
   --bg: #1e1e24;
   --fg: #e2e2e6;
   --fg-secondary: #8e8e98;
@@ -127,24 +127,24 @@ body.theme-oled-black {
 }
 
 /* ------------------------------------------------------------- 3. Font Families */
-body.font-ia-mono .editor-textarea,
-body.font-ia-mono .focus-backdrop,
-body.font-ia-mono #previewContent {
-  font-family: 'iA Writer Mono', Menlo, Monaco, Consolas, "Courier New", monospace;
+body.font-plex-mono .editor-textarea,
+body.font-plex-mono .focus-backdrop,
+body.font-plex-mono #previewContent {
+  font-family: 'IBM Plex Mono', Menlo, Monaco, Consolas, "Courier New", monospace;
   letter-spacing: normal;
 }
 
-body.font-ia-duo .editor-textarea,
-body.font-ia-duo .focus-backdrop,
-body.font-ia-duo #previewContent {
-  font-family: 'iA Writer Duo', monospace;
+body.font-plex-sans .editor-textarea,
+body.font-plex-sans .focus-backdrop,
+body.font-plex-sans #previewContent {
+  font-family: 'IBM Plex Sans', monospace;
   letter-spacing: normal;
 }
 
-body.font-ia-quattro .editor-textarea,
-body.font-ia-quattro .focus-backdrop,
-body.font-ia-quattro #previewContent {
-  font-family: 'iA Writer Quattro', -apple-system, BlinkMacSystemFont, sans-serif;
+body.font-plex-serif .editor-textarea,
+body.font-plex-serif .focus-backdrop,
+body.font-plex-serif #previewContent {
+  font-family: 'IBM Plex Serif', -apple-system, BlinkMacSystemFont, sans-serif;
   letter-spacing: normal;
 }
 
@@ -463,7 +463,7 @@ body.mode-split .pane {
   flex-direction: column;
 }
 
-/* Formatting Toolbar (PubCraft Style) */
+/* Formatting toolbar */
 .formatting-toolbar {
   display: flex;
   align-items: center;
@@ -480,7 +480,7 @@ body.mode-split .pane {
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-/* Auto-dimmed while writing to protect creative focus (PubCraft / iA Writer style) */
+/* Auto-dimmed while writing to keep the focus on the page */
 .formatting-toolbar.hud-dimmed {
   opacity: 0.18;
   pointer-events: none;
@@ -491,7 +491,7 @@ body.mode-split .pane {
   pointer-events: auto !important;
 }
 
-/* In Focus Dim Mode: turns into a floating pill at bottom center (PubCraft style) */
+/* In focus mode: a floating pill at the bottom center */
 body.focus-dim-active .formatting-toolbar {
   position: fixed;
   bottom: 24px;
@@ -672,7 +672,7 @@ body.focus-dim-active .editor-textarea::selection {
   color: inherit;
 }
 
-/* Paragraph Focus Mode: make all other paragraphs fade out virtually completely (iA Writer laser focus) */
+/* Paragraph focus: the other paragraphs fade out almost completely */
 body.focus-mode-paragraph .focus-dimmed,
 body.focus-mode-paragraph .focus-dimmed-paragraph {
   opacity: 0.04 !important;
@@ -706,7 +706,7 @@ body.focus-mode-sentence .focus-dimmed {
   word-break: break-word;
 }
 
-/* ------------------------------------------------------------- 8. Live Preview (Typora Style) */
+/* ------------------------------------------------------------- 8. Live Preview */
 .preview-scroll-wrapper {
   width: 100%;
   height: 100%;
@@ -817,7 +817,7 @@ body.typewriter-active .preview-scroll-wrapper {
   background-repeat: no-repeat;
 }
 
-/* Tables (Typora style) */
+/* Tables */
 .preview-content table {
   width: 100%;
   border-collapse: collapse;
@@ -848,7 +848,7 @@ body.typewriter-active .preview-scroll-wrapper {
   background: var(--code-bg);
   padding: 2px 6px;
   border-radius: 4px;
-  font-family: 'iA Writer Mono', monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 0.9em;
 }
 
@@ -898,7 +898,7 @@ body.typewriter-active .preview-scroll-wrapper {
 /* Math: no KaTeX is bundled, so formulas are shown as styled TeX source
    instead of pretending to be rendered. */
 .math-tex {
-  font-family: 'iA Writer Mono', 'Cambria Math', serif;
+  font-family: 'IBM Plex Mono', 'Cambria Math', serif;
   font-style: italic;
   font-size: 0.97em;
   letter-spacing: 0.01em;
@@ -1236,7 +1236,7 @@ body.typewriter-active .preview-scroll-wrapper {
   color: var(--fg-secondary);
 }
 
-/* ------------------------------------------------------------- 11.5 macOS / PubCraft File Browser Modal */
+/* ------------------------------------------------------------- 11.5 File browser modal */
 .fs-modal-card {
   width: 680px;
   max-width: 94vw;

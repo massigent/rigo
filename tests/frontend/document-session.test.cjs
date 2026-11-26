@@ -97,13 +97,13 @@ test("the answer of A after New leaves the new buffer unnamed and never writes A
   app.click("actionNew");
   await app.flush();
   assert.equal(app.pathLabel(), "Senza titolo");
-  assert.equal(app.title(), "Senza titolo.md — TypeCraft");
+  assert.equal(app.title(), "Senza titolo.md — Rigo");
 
   saves.at(0).resolve(saveOk("/docs/a.md", 1234));
   await app.flush();
 
   assert.equal(app.pathLabel(), "Senza titolo", "the old answer must not restore the old path");
-  assert.equal(app.title(), "Senza titolo.md — TypeCraft");
+  assert.equal(app.title(), "Senza titolo.md — Rigo");
 
   // Typing in the new buffer is dirty, but nothing is written to A.
   app.append("new text");
@@ -170,7 +170,7 @@ test("the answer of A after opening B does not alter B", async (t) => {
   await app.flush();
 
   assert.equal(app.pathLabel(), "/docs/b.md");
-  assert.equal(app.title(), "b.md — TypeCraft");
+  assert.equal(app.title(), "b.md — Rigo");
   assert.equal(app.value(), "beta");
   assert.equal(app.status(), "● Salvato");
 
@@ -204,7 +204,7 @@ test("two opens resolved in reverse order: the newest accepted open wins", async
   await app.flush();
 
   assert.equal(app.pathLabel(), "/docs/c.md");
-  assert.equal(app.title(), "c.md — TypeCraft");
+  assert.equal(app.title(), "c.md — Rigo");
   assert.equal(app.value(), "gamma");
 });
 
@@ -409,7 +409,7 @@ test("an untitled buffer never autosaves, opens no dialog, and SSE still opens f
   t.after(() => app.close());
 
   assert.equal(app.pathLabel(), "Senza titolo");
-  assert.equal(app.title(), "Senza titolo.md — TypeCraft");
+  assert.equal(app.title(), "Senza titolo.md — Rigo");
 
   app.append("x");
   assert.equal(app.status(), "○ Non salvato");
@@ -627,7 +627,7 @@ test("a slow /api/init does not discard text typed while it loads", async (t) =>
 
   assert.equal(app.value(), "typed before init", "the late init answer must not replace the buffer");
   assert.equal(app.pathLabel(), "Senza titolo", "and it must not adopt the file path");
-  assert.equal(app.title(), "Senza titolo.md — TypeCraft");
+  assert.equal(app.title(), "Senza titolo.md — Rigo");
   assert.equal(app.beforeUnloadBlocked(), true);
 
   await app.advance(600);

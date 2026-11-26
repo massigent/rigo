@@ -1,8 +1,8 @@
-// TypeCraft — Markdown HTML Sanitizer
+// Rigo — Markdown HTML Sanitizer
 // marked() passes raw HTML through, so a document opened from disk could run
 // script in the app origin — and the app origin holds the API token that can
 // read/write files. Every rendered document therefore goes through this
-// allow-list before it touches the DOM (the fix Typora needed for CVE-2022-*).
+// allow-list before it touches the DOM.
 
 (function () {
   "use strict";
@@ -115,7 +115,7 @@
         }
       } else if (name === "id") {
         // Keep anchors usable but never let a document collide with app ids.
-        if (!/^[A-Za-z][\w:.-]*$/.test(value) || value.indexOf("typecraft") === 0) {
+        if (!/^[A-Za-z][\w:.-]*$/.test(value) || value.indexOf("rigo") === 0) {
           el.removeAttribute("id");
         }
       }
@@ -138,5 +138,5 @@
     return doc.body.innerHTML;
   }
 
-  window.TypeCraftSanitizer = { clean: clean };
+  window.RigoSanitizer = { clean: clean };
 })();

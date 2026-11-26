@@ -1,5 +1,5 @@
-// TypeCraft — Typewriter Continuous Scrolling Engine
-// Keeps the active writing line fixed vertically in the viewport (iA Writer & PubCraft style)
+// Rigo — Typewriter Continuous Scrolling Engine
+// Keeps the active writing line fixed vertically in the viewport
 //
 // Measurement is incremental: while typing inside one line, the caret's row
 // only depends on the wrapped rows above it (text before the line start,
@@ -15,7 +15,7 @@ class TypewriterEngine {
   constructor(editor, backdrop) {
     this.editor = editor;
     this.backdrop = backdrop;
-    this.enabled = localStorage.getItem("typecraft.typewriter") !== "0"; // Default: ON
+    this.enabled = localStorage.getItem("rigo.typewriter") !== "0"; // Default: ON
     this.mirrorDiv = null;
     this.rafId = null;
     // { lineStart, lineTopY, textLen, sel } or null (full measure next time).
@@ -41,7 +41,7 @@ class TypewriterEngine {
 
   toggle() {
     this.enabled = !this.enabled;
-    localStorage.setItem("typecraft.typewriter", this.enabled ? "1" : "0");
+    localStorage.setItem("rigo.typewriter", this.enabled ? "1" : "0");
     document.body.classList.toggle("typewriter-active", this.enabled);
     if (this.enabled) {
       this.centerCaret(true);

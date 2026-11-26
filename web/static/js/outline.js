@@ -1,4 +1,4 @@
-// TypeCraft — Document Outline / Table of Contents Engine (Typora style + Ferrite logic)
+// Rigo — Document Outline / Table of Contents Engine
 
 class OutlineEngine {
   constructor(editor, listContainer, scrollWrapper) {

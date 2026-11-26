@@ -59,7 +59,7 @@ test("typing during Save As keeps the buffer dirty and the follow-up writes the 
   await app.flush();
 
   assert.equal(app.pathLabel(), "/docs/a2.md");
-  assert.equal(app.title(), "a2.md — TypeCraft");
+  assert.equal(app.title(), "a2.md — Rigo");
   assert.notEqual(app.status(), "● Salvato", "text typed during the rename is not persisted yet");
   assert.equal(app.beforeUnloadBlocked(), true);
   assert.equal(app.saveCalls().length, 1);
@@ -90,7 +90,7 @@ test("a late Save As answer cannot take possession of a new document", async (t)
   await app.flush();
 
   assert.equal(app.pathLabel(), "Senza titolo");
-  assert.equal(app.title(), "Senza titolo.md — TypeCraft");
+  assert.equal(app.title(), "Senza titolo.md — Rigo");
   assert.equal(app.status(), "● Salvato");
   assert.equal(app.value(), "");
   assert.equal(app.saveCalls().length, 0);
@@ -204,7 +204,7 @@ test("a failed rename keeps the source and leaves the pending edits dirty", asyn
   await app.flush();
 
   assert.equal(app.pathLabel(), "/docs/a.md");
-  assert.equal(app.title(), "a.md — TypeCraft");
+  assert.equal(app.title(), "a.md — Rigo");
   assert.equal(app.alertMessages.length, 1);
   assert.equal(app.beforeUnloadBlocked(), true);
   assert.equal(app.saveCalls().length, 0);
@@ -237,7 +237,7 @@ test("Save As names an untitled buffer and later autosaves use the new path", as
   await app.flush();
 
   assert.equal(app.pathLabel(), "/docs/doc.md");
-  assert.equal(app.title(), "doc.md — TypeCraft");
+  assert.equal(app.title(), "doc.md — Rigo");
   assert.equal(app.status(), "● Salvato");
   assert.equal(app.beforeUnloadBlocked(), false);
 

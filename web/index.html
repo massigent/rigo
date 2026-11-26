@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TypeCraft — Minimalist Markdown Editor</title>
+  <title>Rigo — Minimalist Markdown Editor</title>
   <link rel="stylesheet" href="/static/css/app.css">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✍️</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="/static/img/rigo.svg">
 </head>
-<body class="theme-ia-light font-ia-mono mode-raw">
+<body class="theme-light font-plex-mono mode-raw">
 
   <!-- HUD Top Bar (Auto-hides during typing) -->
   <header id="zenHud" class="zen-hud">
@@ -39,8 +39,8 @@
     <div class="hud-right">
       <!-- Editor Mode: Raw / Hybrid Live / Split -->
       <div class="view-mode-group" role="group" aria-label="Editor View Mode">
-        <button id="btnModeRaw" class="mode-tab-btn active" title="Focus Raw (iA Writer style)">Focus</button>
-        <button id="btnModeLive" class="mode-tab-btn" title="Live Preview (Typora style)">Live</button>
+        <button id="btnModeRaw" class="mode-tab-btn active" title="Focus: solo testo (Ctrl+1)">Focus</button>
+        <button id="btnModeLive" class="mode-tab-btn" title="Anteprima live (Ctrl+2)">Live</button>
         <button id="btnModeSplit" class="mode-tab-btn" title="Split Dual Mode">Dual</button>
       </div>
 
@@ -72,9 +72,9 @@
           <span id="fontCurrentLabel">Mono</span>
         </button>
         <div id="fontMenu" class="dropdown-menu hidden">
-          <button data-font="ia-mono" class="dropdown-item active">⌨️ iA Writer Mono</button>
-          <button data-font="ia-duo" class="dropdown-item">🔤 iA Writer Duo</button>
-          <button data-font="ia-quattro" class="dropdown-item">✨ iA Writer Quattro</button>
+          <button data-font="plex-mono" class="dropdown-item active">⌨️ IBM Plex Mono</button>
+          <button data-font="plex-sans" class="dropdown-item">🔤 IBM Plex Sans</button>
+          <button data-font="plex-serif" class="dropdown-item">✨ IBM Plex Serif</button>
           <button data-font="garamond" class="dropdown-item">📖 E.B. Garamond Serif</button>
           <button data-font="lora" class="dropdown-item">📜 Lora Editorial</button>
           <button data-font="system-sans" class="dropdown-item">🏛️ Clean Sans</button>
@@ -87,10 +87,10 @@
           <span id="themeCurrentIcon">☀️</span>
         </button>
         <div id="themeMenu" class="dropdown-menu hidden">
-          <button data-theme="ia-light" class="dropdown-item active">☀️ iA Clean (Light)</button>
-          <button data-theme="sepia" class="dropdown-item">📜 Sepia Paper (Warm)</button>
-          <button data-theme="typora-night" class="dropdown-item">🌙 Typora Night (Slate)</button>
-          <button data-theme="oled-black" class="dropdown-item">⬛ OLED Pure Black</button>
+          <button data-theme="light" class="dropdown-item active">☀️ Carta (chiaro)</button>
+          <button data-theme="sepia" class="dropdown-item">📜 Sepia (caldo)</button>
+          <button data-theme="night" class="dropdown-item">🌙 Notte (ardesia)</button>
+          <button data-theme="oled-black" class="dropdown-item">⬛ OLED (nero puro)</button>
         </div>
       </div>
 
@@ -158,7 +158,7 @@
     
     <!-- Raw / Typewriter Writing Pane -->
     <section id="rawPane" class="pane raw-pane">
-      <!-- Formatting Toolbar (PubCraft Style) -->
+      <!-- Formatting toolbar -->
       <div id="formattingToolbar" class="formatting-toolbar" role="toolbar" aria-label="Strumenti di formattazione">
         <button type="button" class="tb-btn" id="tbBold" title="Grassetto (Ctrl+B)" aria-label="Grassetto"><b>B</b></button>
         <button type="button" class="tb-btn" id="tbItalic" title="Corsivo (Ctrl+I)" aria-label="Corsivo"><i>I</i></button>
@@ -186,7 +186,7 @@
       </div>
     </section>
 
-    <!-- Live Preview Pane (Typora style inline rendered preview) -->
+    <!-- Live preview pane (rendered) -->
     <section id="previewPane" class="pane preview-pane hidden">
       <div class="preview-scroll-wrapper" id="previewScrollWrapper">
         <article id="previewContent" class="preview-content markdown-body"></article>
@@ -215,7 +215,7 @@
     </div>
   </footer>
 
-  <!-- macOS / PubCraft Style File Browser & Save As Modal -->
+  <!-- File browser & Save As modal -->
   <div id="fsModal" class="modal-backdrop hidden">
     <div class="modal-card fs-modal-card">
       <div class="fs-modal-header">

@@ -1,4 +1,4 @@
-// TypeCraft — Live Preview & Interactive Markdown Engine (Typora style, code & math aware)
+// Rigo — Live Preview & Interactive Markdown Engine (code & math aware)
 
 class LivePreviewEngine {
   constructor(editor, container) {
@@ -70,7 +70,7 @@ class LivePreviewEngine {
     // only ASCII word characters, colon, dot or dash. Preserve existing
     // valid anchors, and encode other letters rather than dropping the ID.
     const ascii = slug.replace(/[^\w-]/gu, (char) => "-u" + char.codePointAt(0).toString(16) + "-");
-    const base = /^[a-z]/i.test(ascii) && !ascii.startsWith("typecraft") ? ascii : "section-" + ascii;
+    const base = /^[a-z]/i.test(ascii) && !ascii.startsWith("rigo") ? ascii : "section-" + ascii;
     const count = this._headingCounts.get(base) || 0;
     this._headingCounts.set(base, count + 1);
     let id = count === 0 ? base : base + "-" + count;
@@ -752,7 +752,7 @@ class LivePreviewEngine {
   }
 
   sanitize(html) {
-    if (window.TypeCraftSanitizer) return window.TypeCraftSanitizer.clean(html);
+    if (window.RigoSanitizer) return window.RigoSanitizer.clean(html);
     // Fail closed: without the sanitizer, show the source as plain text.
     return `<pre>${escapeHtml(html)}</pre>`;
   }
@@ -769,7 +769,7 @@ class LivePreviewEngine {
       let abs = this.resolvePath(raw);
       if (typeof apiUrl !== "function") return;
       // Force the image through the backend so relative paths resolve against
-      // the document folder (Typora behaviour) and never against the app root.
+      // the document folder and never against the app root.
       if (!/^([a-zA-Z]:[\\/]|\/)/.test(abs)) return;
       img.setAttribute("src", apiUrl("/api/asset?path=" + encodeURIComponent(abs)));
       img.setAttribute("loading", "lazy");

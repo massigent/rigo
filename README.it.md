@@ -1,10 +1,14 @@
-# TypeCraft ✍️
+# Rigo ✍️
 
 **Un editor Markdown locale per scrivere senza distrazioni.**
 
+> Rigo si chiamava TypeCraft. Il cambio nome è arrivato con la pulizia delle licenze: i font
+> incorporati sono ora IBM Plex (SIL OFL) e il progetto è pubblicato con licenza MIT. Per i tuoi
+> documenti non cambia nulla: stessi file Markdown, stesse cartelle, e i recenti migrano al primo avvio.
+
 Scrivi in Markdown e passa dal sorgente all’anteprima o alla vista affiancata. Lo scorrimento a macchina da scrivere e la messa a fuoco per frase o paragrafo ti aiutano a restare sul testo. I documenti restano normali file sul disco: non serve un account. Un unico eseguibile Go serve l’interfaccia nel browser.
 
-[Scarica per Linux, Windows e macOS](https://github.com/massigent/typecraft/releases/tag/v1.0.6) · [Note di rilascio](docs/releases/v1.0.6.md) · [English](README.md)
+[Scarica per Linux, Windows e macOS](https://github.com/massigent/rigo/releases/tag/v1.1.0) · [Note di rilascio](docs/releases/v1.1.0.md) · [English](README.md)
 
 ---
 
@@ -13,7 +17,7 @@ Scrivi in Markdown e passa dal sorgente all’anteprima o alla vista affiancata.
 ### Scrittura senza distrazioni
 - **Scorrimento Continuo a Macchina da Scrivere**: La riga attiva di scrittura rimane perfettamente fissata al centro dello schermo (a 45vh). Man mano che scrivi o premi invio, il testo scorre morbidamente sotto le tue dita grazie a un algoritmo di centratura in sub-pixel (`requestAnimationFrame` + calcolo esatto del caret tramite *mirror element*).
 - **Focus Mode a 3 Livelli (Frase / Paragrafo / Spento)**: Con `Ctrl+D` isoli la frase o il paragrafo che stai componendo. Tutto il testo circostante viene delicatamente attenuato (opacità 30%), eliminando il sovraccarico visivo e focalizzando il flusso di pensiero.
-- **Tipografia d'Autore Integrata**: Include i font originali **iA Writer Mono**, **iA Writer Duo** e **iA Writer Quattro**, oltre ai caratteri serif editoriali **EB Garamond** e **Lora**.
+- **Tipografia d'Autore Integrata**: **IBM Plex Mono**, **IBM Plex Sans** e **IBM Plex Serif**, più i serif editoriali **EB Garamond** e **Lora** — tutti sotto SIL Open Font License (vedi `THIRD-PARTY.md`). I caratteri sono incorporati nel binario: nessun font di sistema richiesto, nessuna richiesta di rete.
 - **Feedback Tattile Meccanico (Audio Web API)**: Premi `Ctrl+Alt+T` per attivare il leggero ticchettio sintetico da macchina da scrivere d'epoca e il ritorno a capo a campana (completamente sintetizzato via codice, zero file audio esterni o ritardi).
 - **Interfaccia Zen Invisibile**: Quando inizi a scrivere, ogni barra di stato, menu e conteggio svanisce dolcemente. Basta muovere il cursore o premere Esc per riattivare la pulsantiera.
 
@@ -37,8 +41,8 @@ Scrivi in Markdown e passa dal sorgente all’anteprima o alla vista affiancata.
 
 1. **☀️ iA Clean (Chiaro)**: Carta bianco puro con inchiostro scuro e accento ciano elettrico iA.
 2. **📜 Sepia Paper (Caldo)**: Tonalità carta antica rilassante per gli occhi durante le lunghe sessioni notturne.
-3. **🌙 Typora Night (Ardesia)**: Grigio fumo scuro ad alto contrasto per ambienti poco illuminati.
-4. **⬛ OLED Pure Black**: Nero assoluto (`#000000`) per display moderni con accento azzurro fluorescente.
+3. **🌙 Notte (ardesia)**: Grigio fumo scuro ad alto contrasto per ambienti poco illuminati.
+4. **⬛ OLED (nero puro)**: Nero assoluto (`#000000`) per display moderni con accento azzurro fluorescente.
 
 ---
 
@@ -55,8 +59,8 @@ Scrivi in Markdown e passa dal sorgente all’anteprima o alla vista affiancata.
 | **Ctrl + T** (o Cmd+T) | Alterna scorrimento fisso Macchina da Scrivere |
 | **Ctrl + Alt + T** | Attiva / disattiva suono meccanico tasti |
 | **Ctrl + Shift + O** | Apri / Chiudi Indice Documento (Outline) |
-| **Ctrl + 1** | Modalità Focus Raw (Scrittura pura iA Writer) |
-| **Ctrl + 2** | Modalità Live Preview (Anteprima formattata Typora) |
+| **Ctrl + 1** | Modalità Focus raw (solo testo) |
+| **Ctrl + 2** | Modalità anteprima live |
 | **Ctrl + 3** | Modalità Dual Split (Editor + Anteprima affiancati) |
 | **Ctrl + B** | Grassetto (`**testo**`) |
 | **Ctrl + I** | Corsivo (`*testo*`) |
@@ -71,11 +75,11 @@ Scrivi in Markdown e passa dal sorgente all’anteprima o alla vista affiancata.
 
 ### Esecuzione Immediata (Linux):
 ```bash
-./typecraft
+./rigo
 ```
 Oppure aprendo direttamente un file markdown specifico:
 ```bash
-./typecraft ~/Documenti/Articolo.md
+./rigo ~/Documenti/Articolo.md
 ```
 
 ### Compilazione per Tutte le Piattaforme:
@@ -88,16 +92,16 @@ make build
 make cross-compile
 ```
 I binari compilati saranno posizionati nella cartella `dist/`:
-- `typecraft-linux-amd64`
-- `typecraft-linux-arm64`
-- `typecraft-macos-amd64`
-- `typecraft-macos-arm64`
-- `typecraft-windows-amd64.exe`
+- `rigo-linux-amd64`
+- `rigo-linux-arm64`
+- `rigo-macos-amd64`
+- `rigo-macos-arm64`
+- `rigo-windows-amd64.exe`
 
 ### Creazione dell'AppImage (Linux):
 `make appimage` richiede `appimagetool` nel `PATH` (oppure `APPIMAGETOOL=/percorso/appimagetool`).
 Compila sempre un binario Linux amd64 ELF aggiornato, prepara desktop file, icona e `AppRun` in una
-cartella temporanea privata sotto `dist/` e pubblica `dist/TypeCraft-x86_64.AppImage` solo a build riuscita:
+cartella temporanea privata sotto `dist/` e pubblica `dist/Rigo-x86_64.AppImage` solo a build riuscita:
 
 ```bash
 make appimage
@@ -107,7 +111,7 @@ make appimage APPIMAGETOOL=/percorso/appimagetool DIST_DIR=release
 ```
 
 `make install-appdir` compila un binario Linux amd64 aggiornato in
-`TypeCraft.AppDir/usr/bin/typecraft` per i test locali del desktop; l'AppImage non usa questo file.
+`Rigo.AppDir/usr/bin/rigo` per i test locali del desktop; l'AppImage non usa questo file.
 In caso di errore la staging e l'AppImage parziale vengono rimosse, lasciando intatto l'artefatto precedente.
 
 ### Pacchetti Linux nativi (x86_64)
@@ -116,36 +120,36 @@ In caso di errore la staging e l'AppImage parziale vengono rimosse, lasciando in
 
 ```bash
 # Ubuntu
-sudo apt install ./dist/typecraft_1.0.6-1_amd64.deb
+sudo apt install ./dist/rigo_1.1.0-1_amd64.deb
 
 # Fedora
-sudo dnf install ./dist/typecraft-1.0.6-1.x86_64.rpm
+sudo dnf install ./dist/rigo-1.1.0-1.x86_64.rpm
 
 # AppImage (non richiede installazione)
-chmod +x dist/TypeCraft-x86_64.AppImage
-./dist/TypeCraft-x86_64.AppImage
+chmod +x dist/Rigo-x86_64.AppImage
+./dist/Rigo-x86_64.AppImage
 ```
 
-Su un sistema senza FUSE, avvia l'AppImage con `APPIMAGE_EXTRACT_AND_RUN=1`. Dopo aver installato il DEB o l'RPM, cerca **TypeCraft** nel menu applicazioni o esegui `typecraft`.
+Su un sistema senza FUSE, avvia l'AppImage con `APPIMAGE_EXTRACT_AND_RUN=1`. Dopo aver installato il DEB o l'RPM, cerca **Rigo** nel menu applicazioni o esegui `rigo`.
 
 ### Pacchetti Windows e macOS
 
-Scarica il setup Windows x64 dalla [release](https://github.com/massigent/typecraft/releases/tag/v1.0.6) ed eseguilo dal tuo account. Su macOS, scarica lo ZIP per Apple Silicon (`arm64`) o Intel (`amd64`), estrailo e sposta `TypeCraft.app` in Applicazioni. Queste build non hanno una firma di distribuzione; le app macOS non sono notarizzate.
+Scarica il setup Windows x64 dalla [release](https://github.com/massigent/rigo/releases/tag/v1.1.0) ed eseguilo dal tuo account. Su macOS, scarica lo ZIP per Apple Silicon (`arm64`) o Intel (`amd64`), estrailo e sposta `Rigo.app` in Applicazioni. Queste build non hanno una firma di distribuzione; le app macOS non sono notarizzate.
 
 Per compilare da Linux usa `make windows-installer` (richiede NSIS e `icotool`) e `make macos-packages` (richiede Python 3 e `png2icns`). Dopo entrambe le build, `sh tests/desktop-packaging-smoke.sh` verifica gli artefatti con 7-Zip e Python.
 
 ### Opzioni da Riga di Comando:
-- `./typecraft [file.md]` : Apre immediatamente il file indicato.
-- `./typecraft [cartella]` : Apre la cartella come spazio di lavoro (workspace).
-- `./typecraft -port 8080` : Imposta una porta fissa invece della selezione automatica.
-- `./typecraft --no-browser` : Avvia solo il motore server locale (ideale per server o sessioni remote).
-- `./typecraft -version` : Mostra la versione installata.
+- `./rigo [file.md]` : Apre immediatamente il file indicato.
+- `./rigo [cartella]` : Apre la cartella come spazio di lavoro (workspace).
+- `./rigo -port 8080` : Imposta una porta fissa invece della selezione automatica.
+- `./rigo --no-browser` : Avvia solo il motore server locale (ideale per server o sessioni remote).
+- `./rigo -version` : Mostra la versione installata.
 
 ---
 
 ## 🔧 Novità della 1.0.2
 
-Revisione condotta confrontando il codice con build reali di iA Writer e Typora:
+Revisione condotta confrontando il codice con build reali di editor affermati:
 
 **Correttezza e sicurezza dei dati**
 - **L'inoltro a istanza singola ora funziona**: aprendo un secondo file dal file manager il nuovo processo usciva e la finestra già aperta non ne sapeva nulla (il percorso veniva scritto come testo grezzo sulla porta HTTP). Ora l'istanza primaria lo riceve su un canale di controllo autenticato e la UI apre il file via Server-Sent Events.
@@ -159,7 +163,7 @@ Revisione condotta confrontando il codice con build reali di iA Writer e Typora:
 **Funzionalità corrette**
 - **Le checkbox delle task list cambiano solo il marcatore giusto**: ogni task Markdown è mappata tramite l'albero di token di Marked al preciso marcatore nel buffer (liste puntate, numerate, annidate, in citazione e task duplicate, incluso `[X]`). `[x]` nel testo, HTML dell'autore, codice inline/recintato/indentato e preview stale non possono spostare o autorizzare un edit; i click ignorati non sporcano il documento e le task in sola lettura sono disabilitate.
 - **Segno di spunta visibile** (un `::after` su un `<input>` non viene mai renderizzato) e **il Focus Mode non fa più scivolare il testo** rispetto al caret (la riga evidenziata aveva un peso maggiore, che cambia la larghezza dei glifi).
-- **I link si aprono nel browser esterno** invece di far navigare via l'editor, e i link ad altri file `.md` locali si aprono dentro TypeCraft.
+- **I link si aprono nel browser esterno** invece di far navigare via l'editor, e i link ad altri file `.md` locali si aprono dentro Rigo.
 - **Immagini locali** risolte rispetto al documento (`/api/asset`), con segnaposto per le immagini mancanti.
 - **Math** viene messo da parte prima del parsing Markdown, quindi `$x_1 * y_2$` non viene più trasformato in enfasi; le formule in blocco non lasciano più paragrafi vuoti.
 - **Tema, font, typewriter, focus e suono vengono ripristinati** nell'interfaccia all'avvio.
@@ -171,6 +175,28 @@ Revisione condotta confrontando il codice con build reali di iA Writer e Typora:
 **Ingegneria**
 - Il server guadagna `ReadHeaderTimeout`/`IdleTimeout`, header di sicurezza e gli endpoint `/api/events`, `/api/asset`, `/api/internal/open`.
 - 6 nuovi test di regressione (`go test -race`).
+
+---
+
+## 🔧 Novità della 1.1.0 — Rigo
+
+**L'editor ora si chiama Rigo** e la release pubblica è sotto licenza MIT, con l'audit delle
+componenti di terze parti che una pubblicazione richiede. Dettaglio completo in
+[docs/releases/v1.1.0.md](docs/releases/v1.1.0.md).
+
+- **Font sostituiti e ridistribuibili**: i caratteri incorporati sono ora **IBM Plex Mono / Sans /
+  Serif** (SIL OFL 1.1). I font precedenti venivano da un produttore di editor che ne vieta
+  l'incorporamento in altri editor: sono stati rimossi, senza regressione visiva (IBM Plex è la
+  stessa discendenza tipografica) e con il peso dei font che scende da 425 KB a 183 KB.
+- **Licenze**: `LICENSE` (MIT) e `THIRD-PARTY.md` (testi OFL, marked, Markdown, libreria standard
+  Go) sono nel repository e dentro ogni pacchetto (`packaging/copyright`).
+- **Nuovo logo**: icona originale generata da `tools/icon` — tre righi di testo con quello centrale
+  centrato e accentato, l'idea stessa del prodotto. `.ico` e `.icns` multi-risoluzione sono
+  costruiti da lì.
+- **Temi rinominati** con nomi neutri: *Carta*, *Sepia*, *Notte*, *OLED*. Preferenze salvate,
+  file recenti (`~/.typecraft` → `~/.rigo`) e lock di istanza migrano automaticamente al primo avvio.
+- **Header API** `X-Rigo-Token` / `X-Rigo-Control`; lock di istanza, profilo del browser e file
+  della porta ora vivono in `~/.rigo`.
 
 ---
 
@@ -249,8 +275,8 @@ Dettaglio completo in `REVIEW-1.0.3.md`.
 **Dati**
 - **Il salvataggio conserva i permessi del file** (prima ogni save trasformava un `0644`/`0640` in `0600`) e fa `fsync` anche sulla cartella.
 - **"Salva con nome" non sovrascrive più in silenzio**: il backend risponde `409` e sostituisce solo dopo conferma (`overwrite: true`).
-- **L'estensione scritta non viene più riscritta a forza** (il bug che Typora ha corretto in 1.13.7): estensioni non Markdown = `400` con l'elenco ammesso, con una domanda esplicita solo quando sembra davvero un tipo di file.
-- **Watchdog delle modifiche esterne** (`/api/stat`, ogni 5 s, il bug Typora 1.13.7): se il buffer è pulito si ricarica (`● Ricaricato dal disco`), se stai scrivendo mostra `⚠️ Cambiato su disco` senza toccare una riga.
+- **L'estensione scritta non viene più riscritta a forza** (un difetto che altri editor hanno portato avanti per anni): estensioni non Markdown = `400` con l'elenco ammesso, con una domanda esplicita solo quando sembra davvero un tipo di file.
+- **Watchdog delle modifiche esterne** (`/api/stat`, ogni 5 s): se il buffer è pulito si ricarica (`● Ricaricato dal disco`), se stai scrivendo mostra `⚠️ Cambiato su disco` senza toccare una riga.
 - **Salvataggi e conflitti usano revisioni opache di contenuto** (`sha256:<hex>` dei byte del file) invece dei timestamp: una modifica esterna viene rilevata anche con `mtime` e dimensione identici, un salvataggio con baseline vecchia riceve un `409` strutturato (mai una sovrascrittura silenziosa), un file eliminato su disco non viene ricreato e una rinomina verifica prima la revisione sorgente. `mod_time` resta metadato; i timestamp interi fuori precisione non sono più la baseline. `/api/stat` ora calcola l'hash del file a ogni poll (una lettura per finestra ogni 5 s): è il costo per rilevare modifiche con metadata identici. I client API legacy che inviavano solo `mod_time` devono leggere una revisione e mandare `expected_revision` (altrimenti `428 revision_required`).
 - **I documenti in sola lettura sono protetti dal backend, non solo dalla UI**: un file senza bit di scrittura (o senza accesso effettivo in scrittura per il processo) viene esposto come `read_only` e non può essere salvato, rinominato o sostituito dal salvataggio atomico, nemmeno con un override esplicito di un conflitto di contenuto; anche una destinazione protetta viene rifiutata. L'editor si blocca (toolbar, tabelle e checkbox delle task comprese), l'autosave è sospeso e il comando esplicito **Salva una copia** crea un nuovo documento con `old_path` vuoto, senza mai modificare o cancellare l'originale. I bit POSIX sono la policy applicativa; ACL Windows/POSIX oltre la vista del processo restano consultive e si manifestano come errore `write_forbidden` al momento della scrittura (anche un filesystem read-only, `EROFS`). Una rinomina richiede il diritto di rimuovere il file dalla directory di origine, non solo l'accesso in scrittura al file: se la destinazione è stata scritta ma il sorgente non può essere rimosso, la risposta è un errore esplicito di **esito parziale** (sorgente conservato, nessun rollback automatico, nessun passaggio del documento attivo), mai un falso successo.
 - **Salva con nome non sposta più il file**: «Salva con nome» (`Ctrl/Cmd+Shift+S` o il menu) scrive il buffer corrente in un nuovo percorso e lascia intatto il sorgente; solo «Rinomina / Sposta» (click sul titolo) sposta il file, e solo a successo completo. Il salvataggio con nome invia un `source_path` esplicito e il backend rifiuta una destinazione che identifica il sorgente (stesso percorso, alias symlink, stesso file/hard link), quindi una copia non può mai sovrascrivere l'originale (catene di symlink, link dangling, cartelle symlink e hard link vengono rifiutati o falliscono in modo esplicito; il dialogo suggerisce un nome `*-copia.md`). Una destinazione che è una entry symlink attraversata dal percorso sorgente (per esempio una cartella link necessaria per raggiungere l'originale) viene rifiutata come `copy_same_source` anche se i referenti finali sono diversi o è attivo `overwrite`. I target relativi sono risolti dalla directory fisica del link, comprese le cartelle symlink e il prefisso esistente di un percorso mancante; una destinazione distinta la cui entry esiste ma il cui referente manca richiede comunque un consenso esplicito all'overwrite. Annullare o una destinazione negata lascia intatti sorgente e buffer dirty, e gli edit digitati mentre una copia non confermata era pendente restano nel buffer invece di finire con l'autosave sul sorgente. All'avvio un file attivo illeggibile viene segnalato invece di apparire come documento vuoto e pulito, e una risposta del server non conforme al protocollo lascia il buffer dirty con un avviso esplicito (nessuna adozione di percorso/baseline, nessun retry alla cieca).
@@ -265,7 +291,18 @@ Dettaglio completo in `REVIEW-1.0.3.md`.
 
 ---
 
-## 🗺️ Roadmap (gap rispetto a iA Writer / Typora)
+## 📄 Licenza
+
+Rigo è distribuito con [licenza MIT](LICENSE). Le componenti di terze parti incluse (font, parser
+Markdown, libreria standard Go) mantengono le proprie licenze e sono elencate con i testi completi in
+[THIRD-PARTY.md](THIRD-PARTY.md); lo stesso avviso viaggia dentro ogni pacchetto.
+
+Rigo non è affiliato ad altri editor. I nomi di altri prodotti compaiono solo nei documenti storici
+di revisione (`REVIEW-*.md`) e in `AUDIT-IMPLEMENTATION.md`.
+
+---
+
+## 🗺️ Roadmap
 
 - Includere KaTeX per l'impaginazione reale delle formule (e Mermaid per i diagrammi).
 - Trova & sostituisci nel documento (con regex) e obiettivo di parole.

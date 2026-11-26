@@ -1,4 +1,4 @@
-name: Publish TypeCraft release
+name: Publish Rigo release
 
 on:
   push:
@@ -39,8 +39,8 @@ jobs:
           dest=$(mktemp -d)
           trap 'rm -rf -- "$dest"' EXIT
           files=(
-            "typecraft_${version}-1_amd64.deb" "typecraft-${version}-1.x86_64.rpm" "TypeCraft-x86_64.AppImage"
-            "TypeCraft-${version}-windows-x64-setup.exe" "TypeCraft-${version}-macos-arm64.zip" "TypeCraft-${version}-macos-amd64.zip"
+            "rigo_${version}-1_amd64.deb" "rigo-${version}-1.x86_64.rpm" "Rigo-x86_64.AppImage"
+            "Rigo-${version}-windows-x64-setup.exe" "Rigo-${version}-macos-arm64.zip" "Rigo-${version}-macos-amd64.zip"
             "SHA256SUMS"
           )
           for file in "${files[@]}"; do

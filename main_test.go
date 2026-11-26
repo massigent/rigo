@@ -14,7 +14,7 @@ import (
 func TestAtomicWriteAndReadFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "test.md")
-	content := []byte("# Hello TypeCraft\n\nTesting atomic save.")
+	content := []byte("# Hello Rigo\n\nTesting atomic save.")
 
 	if err := atomicWrite(filePath, content); err != nil {
 		t.Fatalf("atomicWrite failed: %v", err)
@@ -93,7 +93,7 @@ func TestAuthMiddleware(t *testing.T) {
 			req.Header.Set("Origin", origin)
 		}
 		if token != "" {
-			req.Header.Set("X-Typecraft-Token", token)
+			req.Header.Set("X-Rigo-Token", token)
 		}
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
@@ -150,7 +150,7 @@ func TestSaveEndpoint(t *testing.T) {
 	})
 
 	req := httptest.NewRequest("POST", "/api/save", bytes.NewReader(data))
-	req.Header.Set("X-Typecraft-Token", "test-token-123")
+	req.Header.Set("X-Rigo-Token", "test-token-123")
 	rec := httptest.NewRecorder()
 	saveHandler(rec, req)
 
@@ -263,7 +263,7 @@ func TestInternalOpenRequiresControlSecret(t *testing.T) {
 	}
 
 	ok := httptest.NewRequest("POST", "/api/internal/open", bytes.NewReader(body))
-	ok.Header.Set("X-Typecraft-Control", "control-secret")
+	ok.Header.Set("X-Rigo-Control", "control-secret")
 	recOK := httptest.NewRecorder()
 	handleInternalOpen(recOK, ok)
 	if recOK.Code != http.StatusOK {
@@ -280,7 +280,7 @@ func TestInternalOpenRequiresControlSecret(t *testing.T) {
 	// Non-markdown paths must be ignored even with a valid secret.
 	bad, _ := json.Marshal(map[string]interface{}{"paths": []string{"/etc/hosts"}})
 	reqBad := httptest.NewRequest("POST", "/api/internal/open", bytes.NewReader(bad))
-	reqBad.Header.Set("X-Typecraft-Control", "control-secret")
+	reqBad.Header.Set("X-Rigo-Control", "control-secret")
 	recBad := httptest.NewRecorder()
 	handleInternalOpen(recBad, reqBad)
 	activeFileMu.RLock()
@@ -348,7 +348,7 @@ func TestFsAndRenameEndpoints(t *testing.T) {
 	// 1. Test /api/fs
 	fsReq := httptest.NewRequest("GET", "/api/fs?path="+tmpDir, nil)
 	fsReq.Host = "127.0.0.1:8080"
-	fsReq.Header.Set("X-Typecraft-Token", "test-token-fs")
+	fsReq.Header.Set("X-Rigo-Token", "test-token-fs")
 	fsRec := httptest.NewRecorder()
 	handler.ServeHTTP(fsRec, fsReq)
 
@@ -390,7 +390,7 @@ func TestFsAndRenameEndpoints(t *testing.T) {
 	})
 	mkdirReq := httptest.NewRequest("POST", "/api/mkdir", bytes.NewReader(mkdirBody))
 	mkdirReq.Host = "127.0.0.1:8080"
-	mkdirReq.Header.Set("X-Typecraft-Token", "test-token-fs")
+	mkdirReq.Header.Set("X-Rigo-Token", "test-token-fs")
 	mkdirRec := httptest.NewRecorder()
 	handler.ServeHTTP(mkdirRec, mkdirReq)
 
@@ -412,7 +412,7 @@ func TestFsAndRenameEndpoints(t *testing.T) {
 	})
 	renameReq := httptest.NewRequest("POST", "/api/rename", bytes.NewReader(renameBody))
 	renameReq.Host = "127.0.0.1:8080"
-	renameReq.Header.Set("X-Typecraft-Token", "test-token-fs")
+	renameReq.Header.Set("X-Rigo-Token", "test-token-fs")
 	renameRec := httptest.NewRecorder()
 	handler.ServeHTTP(renameRec, renameReq)
 
@@ -504,7 +504,7 @@ func TestAssetEndpointConfinedToDocumentFolder(t *testing.T) {
 	get := func(p string) int {
 		req := httptest.NewRequest("GET", "/api/asset?path="+urlQueryEscape(p), nil)
 		req.Host = "127.0.0.1:8080"
-		req.Header.Set("X-Typecraft-Token", "test-token-asset")
+		req.Header.Set("X-Rigo-Token", "test-token-asset")
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		return rec.Code
@@ -542,7 +542,7 @@ func TestRenameRefusesToDeleteNonMarkdownAndToOverwrite(t *testing.T) {
 		data, _ := json.Marshal(body)
 		req := httptest.NewRequest("POST", "/api/rename", bytes.NewReader(data))
 		req.Host = "127.0.0.1:8080"
-		req.Header.Set("X-Typecraft-Token", "test-token-rename")
+		req.Header.Set("X-Rigo-Token", "test-token-rename")
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		return rec
@@ -630,7 +630,7 @@ func TestStatEndpointReportsModTime(t *testing.T) {
 	handler := newHTTPHandler(setupMux(), newLoopbackBoundary(8080))
 	req := httptest.NewRequest("GET", "/api/stat?path="+urlQueryEscape(doc), nil)
 	req.Host = "127.0.0.1:8080"
-	req.Header.Set("X-Typecraft-Token", "test-token-stat")
+	req.Header.Set("X-Rigo-Token", "test-token-stat")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -663,7 +663,7 @@ func TestPathWithinHandlesMissingFileUnderSymlinkedBase(t *testing.T) {
 		t.Fatal("traversal must stay outside")
 	}
 	// macOS /tmp is a symlink: base resolved and target not.
-	symlinkedBase := filepath.Join(os.TempDir(), "typecraft-"+t.Name())
+	symlinkedBase := filepath.Join(os.TempDir(), "rigo-"+t.Name())
 	if err := os.MkdirAll(symlinkedBase, 0o755); err != nil {
 		t.Skip(err)
 	}

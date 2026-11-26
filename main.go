@@ -464,9 +464,10 @@ func newHTTPHandler(mux http.Handler, boundary *httpBoundary) http.Handler {
 }
 
 // migrateLegacyConfig carries the previous release's state over to the new
-// config directory, so an upgrade does not lose the recents list. It only acts
-// when the new file is absent and the old one exists; every failure is ignored
-// (a missing migration is harmless, a crash on startup is not).
+// config directory, so an upgrade does not lose the recents list or the
+// editor preferences. It only acts when the new file/directory is absent and
+// the old one exists; every failure is ignored (a missing migration is
+// harmless, a crash on startup is not).
 func migrateLegacyConfig() {
 	home := getHomeDir()
 	newDir := filepath.Join(home, ".rigo")
@@ -483,6 +484,21 @@ func migrateLegacyConfig() {
 		}
 		_ = os.MkdirAll(newDir, 0o755)
 		_ = atomicWrite(dst, data)
+	}
+
+	// The browser profile holds the editor's own preferences (theme, font,
+	// typewriter, focus, sound) in its localStorage. With the rename a fresh
+	// profile would have silently reset all of them, so carry the directory
+	// over when the new one does not exist yet. A rename keeps it atomic on
+	// the same filesystem; on failure the app starts with a fresh profile,
+	// exactly as before.
+	newProfile := filepath.Join(newDir, "browser-profile")
+	oldProfile := filepath.Join(oldDir, "browser-profile")
+	if _, err := os.Stat(newProfile); os.IsNotExist(err) {
+		if src, err := os.Stat(oldProfile); err == nil && src.IsDir() {
+			_ = os.MkdirAll(newDir, 0o755)
+			_ = os.Rename(oldProfile, newProfile)
+		}
 	}
 }
 

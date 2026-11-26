@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -670,5 +671,74 @@ func TestPathWithinHandlesMissingFileUnderSymlinkedBase(t *testing.T) {
 	defer os.RemoveAll(symlinkedBase)
 	if !pathWithin(symlinkedBase, filepath.Join(symlinkedBase, "x.png")) {
 		t.Fatal("a missing file under a symlinked base must be inside")
+	}
+}
+
+// --- v1.1.1 migration regression: an upgrade must not lose the preferences ---
+
+// The browser profile holds the editor preferences in localStorage. On the
+// rename from the old product name a fresh profile silently reset them all:
+// migrateLegacyConfig must carry the directory over, once, and never undo a
+// profile the new name already created.
+func TestMigrateLegacyConfigCarriesBrowserProfile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", home)
+	}
+
+	old := filepath.Join(home, ".typecraft", "browser-profile")
+	new_ := filepath.Join(home, ".rigo", "browser-profile")
+	if err := os.MkdirAll(filepath.Join(old, "Local Storage"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	pref := filepath.Join(old, "Local Storage", "000003.log")
+	if err := os.WriteFile(pref, []byte("theme=notte"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// A recents list that must survive the same upgrade.
+	if err := os.WriteFile(filepath.Join(home, ".typecraft", "recents.json"),
+		[]byte(`["/tmp/notes.md"]`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	migrateLegacyConfig()
+
+	if data, err := os.ReadFile(filepath.Join(new_, "Local Storage", "000003.log")); err != nil || string(data) != "theme=notte" {
+		t.Fatalf("browser profile was not carried over: %v", err)
+	}
+	if _, err := os.Stat(old); !os.IsNotExist(err) {
+		t.Fatal("the old profile should have been renamed away, not copied")
+	}
+	if data, err := os.ReadFile(filepath.Join(home, ".rigo", "recents.json")); err != nil || string(data) != `["/tmp/notes.md"]` {
+		t.Fatalf("recents were not carried over: %v", err)
+	}
+
+	// Second run: the new profile exists now, nothing may be touched — in
+	// particular a recreated old directory must not overwrite it back.
+	if err := os.MkdirAll(filepath.Join(old, "evil"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	migrateLegacyConfig()
+	if _, err := os.Stat(filepath.Join(new_, "Local Storage", "000003.log")); err != nil {
+		t.Fatalf("the migrated profile was damaged by a second run: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(old, "evil")); err != nil {
+		t.Fatalf("an existing new profile must stop any further migration: %v", err)
+	}
+}
+
+// Without any previous installation the migration is a silent no-op.
+func TestMigrateLegacyConfigNoOldState(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", home)
+	}
+
+	migrateLegacyConfig()
+
+	if _, err := os.Stat(filepath.Join(home, ".rigo")); err == nil {
+		t.Fatal("nothing should be created when there is no legacy state")
 	}
 }

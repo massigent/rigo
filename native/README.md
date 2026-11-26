@@ -1,6 +1,6 @@
-# TypeCraft native (Rust prototype)
+# Rigo native (Rust prototype)
 
-A browser-free reimplementation of the TypeCraft editor: **pure Rust + egui**,
+A browser-free reimplementation of the Rigo editor: **pure Rust + egui**,
 one 14 MB binary, no WebView, no Chromium, no browser launch chain. This is a
 **prototype on the `rust-native` branch**: it proves the architecture, ports
 the core document protocol and the signature editing features, and documents
@@ -25,8 +25,8 @@ what full parity would still require.
   links, block quotes, ordered/unordered/task lists, code blocks, rules,
   tables as text). Raw HTML is rendered as literal text: nothing is ever
   executed.
-- **Four themes** (iA Clean, Sepia, Typora Night, OLED black), the authentic
-  **iA Writer fonts** embedded from the web assets, status bar (Ln/Col, words,
+- **Four themes** (Carta, Sepia, Notte, OLED), IBM Plex fonts (SIL OFL)
+  bundled at `native/assets/fonts/`, status bar (Ln/Col, words,
   chars), native file dialogs via xdg-desktop-portal (no GTK build dep,
   Fedora-friendly).
 - **20 headless tests** — the UI render is driven with a bare `egui::Context`

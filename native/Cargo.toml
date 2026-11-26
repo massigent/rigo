@@ -1,8 +1,8 @@
 [package]
-name = "typecraft-native"
+name = "rigo-native"
 version = "0.1.0"
 edition = "2021"
-description = "Native Rust prototype of the TypeCraft Markdown editor (no browser)"
+description = "Native Rust prototype of the Rigo Markdown editor (no browser)"
 license = "MIT"
 
 [dependencies]

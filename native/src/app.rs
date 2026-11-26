@@ -2,7 +2,7 @@
 //! scrolling, focus dimming, document protocol wiring and shortcuts.
 //!
 //! The UI render is separated from the eframe shell (`update` just calls
-//! [`TypeCraftApp::render`]) so headless tests can drive the same code with a
+//! [`RigoApp::render`]) so headless tests can drive the same code with a
 //! bare `egui::Context`.
 
 use std::path::PathBuf;
@@ -17,7 +17,7 @@ use crate::focus::{self, FocusMode};
 use crate::markdown;
 use crate::theme::{self, Theme};
 
-const EDITOR_ID: &str = "typecraft-editor";
+const EDITOR_ID: &str = "rigo-editor";
 const AUTOSAVE_DELAY: Duration = Duration::from_millis(600);
 const WATCH_INTERVAL: Duration = Duration::from_secs(5);
 
@@ -46,7 +46,7 @@ impl ViewMode {
     }
 }
 
-pub struct TypeCraftApp {
+pub struct RigoApp {
     pub text: String,
     pub path: Option<PathBuf>,
     /// Opaque content revision of the disk file the buffer was last aligned
@@ -84,13 +84,13 @@ pub enum ConfirmDiscard {
     Open,
 }
 
-impl Default for TypeCraftApp {
+impl Default for RigoApp {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl TypeCraftApp {
+impl RigoApp {
     pub fn new() -> Self {
         Self {
             text: welcome_markdown(),
@@ -102,7 +102,7 @@ impl TypeCraftApp {
             view: ViewMode::Raw,
             focus: FocusMode::Off,
             typewriter: true,
-            theme: Theme::IaLight,
+            theme: Theme::Light,
             outline_open: false,
             confirm_discard: None,
             force_next: false,
@@ -110,7 +110,7 @@ impl TypeCraftApp {
             last_watch: Instant::now(),
             last_caret: 0,
             jump_target: None,
-            applied_theme: Theme::IaLight,
+            applied_theme: Theme::Light,
         }
     }
 
@@ -755,7 +755,7 @@ impl TypeCraftApp {
     }
 }
 
-impl eframe::App for TypeCraftApp {
+impl eframe::App for RigoApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if self.theme != self.applied_theme {
             theme::apply(ctx, self.theme);
@@ -798,7 +798,7 @@ fn pick_open_file() -> Option<std::path::PathBuf> {
 /// Test hooks: the same code paths the timers and shortcuts use, callable
 /// headlessly without a display.
 #[doc(hidden)]
-impl TypeCraftApp {
+impl RigoApp {
     /// The explicit save (Ctrl+S) path.
     pub fn save_for_tests(&mut self) {
         self.save_explicit();
@@ -828,8 +828,8 @@ pub fn line_col_for_tests(text: &str, caret: usize) -> (usize, usize) {
 }
 
 fn welcome_markdown() -> String {
-    "# Benvenuto in TypeCraft (nativo) ✍️\n\n\
-     Prototipo Rust/egui della stessa app: nessun browser.\n\n\
+    "# Benvenuto in Rigo (nativo) ✍️\n\n\
+     Un editor Markdown locale, semplice e senza distrazioni.\n\n\
      - **Ctrl+1 / Ctrl+2 / Ctrl+3**: Focus raw / Live preview / Dual split\n\
      - **Ctrl+D**: focus frase/paragrafo\n\
      - **Ctrl+O**: apri un file\n\
@@ -837,4 +837,3 @@ fn welcome_markdown() -> String {
      *Cancella questo testo o apri un tuo documento.*\n"
         .to_string()
 }
-

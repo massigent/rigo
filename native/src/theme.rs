@@ -4,26 +4,26 @@ use eframe::egui;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Theme {
-    IaLight,
+    Light,
     Sepia,
-    TyporaNight,
+    Night,
     OledBlack,
 }
 
 impl Theme {
     pub const ALL: [Theme; 4] = [
-        Theme::IaLight,
+        Theme::Light,
         Theme::Sepia,
-        Theme::TyporaNight,
+        Theme::Night,
         Theme::OledBlack,
     ];
 
     pub fn label(self) -> &'static str {
         match self {
-            Theme::IaLight => "☀️ iA Clean",
-            Theme::Sepia => "📜 Sepia Paper",
-            Theme::TyporaNight => "🌙 Typora Night",
-            Theme::OledBlack => "⬛ OLED Pure Black",
+            Theme::Light => "☀️ Carta",
+            Theme::Sepia => "📜 Sepia",
+            Theme::Night => "🌙 Notte",
+            Theme::OledBlack => "⬛ OLED",
         }
     }
 
@@ -37,9 +37,9 @@ impl Theme {
 fn palette(theme: Theme) -> (&'static [u8; 3], &'static [u8; 3], bool) {
     match theme {
         // (paper, ink, dark)
-        Theme::IaLight => (&[0xff, 0xff, 0xff], &[0x1a, 0x1a, 0x1a], false),
+        Theme::Light => (&[0xff, 0xff, 0xff], &[0x1a, 0x1a, 0x1a], false),
         Theme::Sepia => (&[0xf4, 0xec, 0xd8], &[0x4a, 0x3b, 0x2a], false),
-        Theme::TyporaNight => (&[0x2e, 0x33, 0x39], &[0xd8, 0xdc, 0xe0], true),
+        Theme::Night => (&[0x2e, 0x33, 0x39], &[0xd8, 0xdc, 0xe0], true),
         Theme::OledBlack => (&[0x00, 0x00, 0x00], &[0xd0, 0xd0, 0xd0], true),
     }
 }
@@ -48,7 +48,7 @@ fn rgb(bytes: &[u8; 3]) -> egui::Color32 {
     egui::Color32::from_rgb(bytes[0], bytes[1], bytes[2])
 }
 
-/// The iA electric blue caret/accent of the web app.
+/// The electric blue caret/accent of the web app.
 pub const ACCENT: egui::Color32 =
     egui::Color32::from_rgb(0x4c, 0xb1, 0xff);
 

@@ -245,7 +245,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> io::Result<()> {
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."));
     let mut tmp = tempfile::Builder::new()
-        .prefix(".typecraft_tmp_")
+        .prefix(".rigo_tmp_")
         .tempfile_in(dir)?;
     tmp.write_all(bytes)?;
     tmp.as_file().sync_all()?;
@@ -274,9 +274,9 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> io::Result<()> {
         })
 }
 
-/// Best-effort recents list, same spirit as the Go app (`~/.typecraft`).
+/// Best-effort recents list, same spirit as the Go app (`~/.rigo`).
 pub fn recents_path() -> Option<PathBuf> {
-    dirs_home().map(|h| h.join(".typecraft").join("native-recents.json"))
+    dirs_home().map(|h| h.join(".rigo").join("native-recents.json"))
 }
 
 fn dirs_home() -> Option<PathBuf> {
@@ -318,7 +318,7 @@ mod tests {
     fn tmp_file(tag: &str) -> PathBuf {
         let mut p = std::env::temp_dir();
         p.push(format!(
-            "typecraft-doc-test-{tag}-{}-{}",
+            "rigo-doc-test-{tag}-{}-{}",
             std::process::id(),
             tag_counter()
         ));

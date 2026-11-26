@@ -1,359 +1,196 @@
+<div align="center">
+
+<img src="icons/rigo.png" width="120" alt="Rigo logo"/>
+
 # Rigo ✍️
 
 **A local-first Markdown editor for focused writing.**
 
-> Rigo was previously called TypeCraft. The rename came with a licensing cleanup: the bundled fonts
-> are now IBM Plex (SIL OFL), and the project is published under the MIT license. Nothing changes for
-> your documents: the same Markdown files, the same folders, and your recents are migrated on first start.
+[![CI](https://github.com/massigent/rigo/actions/workflows/ci.yml/badge.svg)](https://github.com/massigent/rigo/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/massigent/rigo)](https://github.com/massigent/rigo/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey.svg)](#download)
 
-Write in plain Markdown, then switch between source, rendered preview, and a synchronized split view. Typewriter scrolling and sentence or paragraph focus keep the current passage in view. Your documents stay in ordinary files on disk; no account is required. A single Go executable serves the interface in your browser.
+Typewriter scrolling · Sentence focus · Live preview · Plain files on disk
 
-[Download for Linux, Windows and macOS](https://github.com/massigent/rigo/releases/tag/v1.1.0) · [Release notes](docs/releases/v1.1.0.md) · [Italiano](README.it.md)
+[**Download**](#download) · [Features](#features) · [Italiano](README.it.md)
+
+</div>
 
 ---
+
+## What is Rigo, and what is it for?
+
+Rigo is a **distraction-free editor for Markdown**, the plain-text format of the web. One small
+executable starts a writing environment on your own machine: typewriter scrolling keeps the line
+you are writing at the centre of the screen, focus mode dims everything except the current
+sentence or paragraph, and a live preview renders as you type. When you are done, your work is
+already saved — as ordinary `.md` files you can open with any other tool.
+
+No account, no cloud, no telemetry, no database, no lock-in. **Your documents never leave the
+machine: local-first by architecture, not by promise.**
+
+### Who is it for?
+
+- **Writers** who draft in plain text and want the interface to disappear while they compose.
+- **Developers and technical writers** who live in Markdown, code blocks and local folders.
+- **Students and note-takers** who want fast notes in a format that will still open in twenty years.
+- **Anyone who prefers files over services** and values a tool that works offline, forever.
+
+### At a glance
+
+| | |
+| :--- | :--- |
+| **Format** | Plain Markdown files in their own folders — nothing imported, nothing exported |
+| **Runtime** | A single Go executable (~6 MB); the interface runs in your browser, no Electron, no Node.js |
+| **Data safety** | Atomic saves, external-change detection, conflict warnings, read-only protection, copy-style “Save as” |
+| **Fonts** | IBM Plex Mono/Sans/Serif, EB Garamond, Lora — all SIL OFL, embedded in the binary, no network requests |
+| **Languages** | Interface in Italian; documents in any language |
+
+> [!NOTE]
+> Rigo was previously called TypeCraft. The rename came with a licensing cleanup: the bundled
+> fonts are now IBM Plex (SIL OFL) and the project is published under the MIT license. Nothing
+> changes for your documents: the same Markdown files, the same folders, and your recents are
+> migrated automatically on first start.
+
+## Download
+
+Prebuilt packages for **Linux, Windows and macOS** are on the
+[releases page](https://github.com/massigent/rigo/releases/latest) (v1.1.0 currently), with
+`SHA256SUMS` for verification:
+
+| System | Package | Install |
+| :--- | :--- | :--- |
+| Ubuntu/Debian | `rigo_*_amd64.deb` | `sudo apt install ./rigo_1.1.0-1_amd64.deb` |
+| Fedora/RHEL | `rigo-*.x86_64.rpm` | `sudo dnf install ./rigo-1.1.0-1.x86_64.rpm` |
+| Any Linux | `Rigo-x86_64.AppImage` | `chmod +x` and run (no installation; `APPIMAGE_EXTRACT_AND_RUN=1` without FUSE) |
+| Windows x64 | `Rigo-*-windows-x64-setup.exe` | Run the setup from your account |
+| macOS (Apple Silicon / Intel) | `Rigo-*-macos-*.zip` | Extract, move `Rigo.app` to Applications |
+
+Windows and macOS builds are not signed or notarized; your OS will ask you to confirm the first
+launch.
 
 ## Features
 
 ### Focused writing
-- **Continuous Typewriter Scrolling**: The active line remains fixed vertically at center (`45vh`). The document moves beneath your typing fingers smoothly using sub-pixel caret tracking (`requestAnimationFrame` + invisible mirror offset calculation).
-- **3-Level Focus Mode (Sentence / Paragraph / Off)**: Press `Ctrl+D` to isolate your current sentence or paragraph. Surrounding text gently fades out (`30% opacity`), eliminating cognitive clutter.
-- **Genuine Typography Included**: Bundled **IBM Plex Mono**, **IBM Plex Sans** and **IBM Plex Serif**, plus the editorial serif faces **EB Garamond** and **Lora** — all under the SIL Open Font License (see `THIRD-PARTY.md`). The typefaces are embedded in the binary: no system font required, no network request.
-- **Tactile Typewriter Mechanical Sound (Web Audio API)**: Toggle organic mechanical key clicks and carriage return bells with `Ctrl+Alt+T` (100% synthesized in code, zero audio assets needed).
-- **Disappearing Zen Chrome**: As you type, toolbars and counters fade out completely.
+- **Typewriter scrolling** — the active line stays fixed at the centre of the screen; the text
+  moves beneath your fingers with sub-pixel caret tracking.
+- **Focus mode** (`Ctrl+D`) — isolate the current sentence or paragraph; the surrounding text
+  gently fades out.
+- **Disappearing chrome** — as you type, toolbars and counters fade out completely; move the mouse
+  or press `Esc` to bring them back.
+- **Typewriter sound** (`Ctrl+Alt+T`) — synthesized mechanical key clicks and carriage-return bells,
+  generated in code (zero audio assets).
+- **Genuine typography** — IBM Plex Mono/Sans/Serif plus the editorial serifs EB Garamond and
+  Lora, embedded in the binary: no system font required, no network request.
 
 ### Markdown and preview
-- **Seamless Live Preview**: Switch effortlessly between raw focus writing (`Ctrl+1`), formatted live preview (`Ctrl+2`), or synchronized dual split view (`Ctrl+3`).
-- **Interactive Task Lists**: Checkboxes (`- [ ]` and `- [x]`) are clickable directly on screen and immediately sync with the underlying Markdown file and auto-save.
-- **Formatted Tables**: Clean rounded markdown tables with alternating row zebra stripes.
-- **Code Blocks with Fast Copy**: Syntax tags and dedicated copy-to-clipboard button.
-- **Local Images**: `![alt](./img.png)` is resolved against the document folder and served by the app (no broken images, no path guessing).
-- **Math Formulas**: Inline `$E=mc^2$` and block `$$\sum_{i=1}^n x_i$$` are protected from Markdown parsing and rendered as styled TeX source. *KaTeX is not bundled yet (see Roadmap), so formulas are not typeset.*
-- **Dynamic Outline (TOC) Drawer**: Real-time table of contents (`Ctrl+Shift+O`) listing H1–H6 headings with instant click-to-jump navigation.
+- **Three views** — raw source (`Ctrl+1`), rendered live preview (`Ctrl+2`), synchronized split
+  view (`Ctrl+3`).
+- **Interactive task lists** — checkboxes are clickable on screen and update the Markdown source
+  immediately, through the parser's own token tree (bulleted, numbered, nested, quoted and
+  duplicated tasks included).
+- **Formatted tables** — rounded borders, zebra rows; **code blocks** with language tags and a
+  copy button.
+- **Local images** — `![alt](./img.png)` resolves against the document folder and is served by the
+  app: no broken images, no path guessing.
+- **Math** — inline `$E=mc^2$` and block `$$…$$` are protected from Markdown parsing and shown as
+  styled TeX source (KaTeX typesetting is on the roadmap).
+- **Dynamic outline** (`Ctrl+Shift+O`) — a real-time table of contents with click-to-jump.
 
-### Local operation
-- **Single Go executable:** no Electron or Node.js runtime. A browser is required for the interface.
-- **Desktop launcher:** launches in a supported browser's standalone window mode or opens in the default browser.
-- **File protection:** saves replace files atomically, detect external edits, and respect read-only files. Save As writes a copy rather than moving the original.
+### Local operation and data safety
+- **One executable** — a Go binary serves the interface in your browser; nothing to install
+  besides it, and it works fully offline.
+- **Desktop launch** — opens in a standalone browser window when the browser supports app mode.
+- **Saves are atomic** and preserve file permissions; the editor never leaves a half-written file.
+- **External-change watchdog** — a clean buffer reloads from disk, a dirty one warns you
+  (`⚠️ Changed on disk`) and not a single typed line is touched. Conflicts are detected through
+  content fingerprints (`sha256`), not timestamps, so an external edit is caught even when size
+  and mtime are identical.
+- **Read-only files are protected by the backend**, not just by the UI: a file with no write bits
+  cannot be saved, renamed or replaced even with an explicit conflict override. A read-only
+  document offers **Save a copy**, which writes a new file and never touches the original.
+- **Save As writes a copy**; renaming/moving is a separate, explicit action, and the backend
+  refuses destinations that alias the source (symlinks, hard links).
+- **Single instance** — launching a second copy (or a file from the file manager) forwards to the
+  running one over an authenticated channel and opens the file there.
 
----
+## 🎨 Four signature themes
 
-## 🎨 4 Signature Themes
+1. **☀️ Carta** — crisp white paper, deep charcoal ink, electric blue caret.
+2. **📜 Sepia** — calming warm tone for long reading and writing sessions.
+3. **🌙 Notte** — dark slate for low-light environments.
+4. **⬛ OLED** — true `#000000` with luminous accents.
 
-1. **☀️ Carta (chiaro)**: Crisp white paper, deep charcoal ink, electric blue caret.
-2. **📜 Sepia (caldo)**: Calming warm book tone for long reading and writing sessions.
-3. **🌙 Notte (ardesia)**: Dark slate gray for low-light environments.
-4. **⬛ OLED (nero puro)**: True `#000000` with luminous neon accents.
-
----
-
-## ⌨️ Keyboard Shortcuts
+## ⌨️ Keyboard shortcuts
 
 | Shortcut | Action |
 | :--- | :--- |
-| **Ctrl + S** (Cmd+S) | Save file immediately |
-| **Ctrl + Shift + S** | Save as (choose a new path) |
-| **Ctrl + O** (Cmd+O) | Open Markdown file |
-| **Ctrl + N** (Cmd+N) | New document |
-| **Ctrl + P** | Print / Save as PDF (always rendered) |
-| **Ctrl + D** (Cmd+D) | Cycle Focus Mode: Off ➔ Sentence ➔ Paragraph |
-| **Ctrl + T** (Cmd+T) | Toggle Typewriter Scrolling |
-| **Ctrl + Alt + T** | Toggle Typewriter Mechanical Sound |
-| **Ctrl + Shift + O** | Toggle Outline (TOC) Drawer |
-| **Ctrl + 1** | Focus Raw Mode |
-| **Ctrl + 2** | Live Preview Mode |
-| **Ctrl + 3** | Dual Split Mode |
-| **Ctrl + B** | Bold (`**text**`) |
-| **Ctrl + I** | Italic (`*text*`) |
-| **Ctrl + K** | Insert Link (`[text](url)`) |
-| **F11** | Fullscreen Zen Mode |
-| **Esc** | Close drawers / menus / wake HUD |
+| `Ctrl/Cmd + S` | Save now (auto-save is on by default) |
+| `Ctrl/Cmd + Shift + S` | Save as (write a copy) |
+| `Ctrl/Cmd + O` | Open a Markdown file |
+| `Ctrl/Cmd + N` | New document |
+| `Ctrl/Cmd + P` | Print / save as PDF (always rendered) |
+| `Ctrl/Cmd + D` | Cycle focus mode: off → sentence → paragraph |
+| `Ctrl/Cmd + T` | Toggle typewriter scrolling |
+| `Ctrl + Alt + T` | Toggle typewriter sound |
+| `Ctrl + Shift + O` | Toggle the outline (TOC) |
+| `Ctrl + 1` / `Ctrl + 2` / `Ctrl + 3` | Raw · preview · split view |
+| `Ctrl/Cmd + B` / `+ I` / `+ K` | Bold · italic · link |
+| `F11` | Fullscreen zen mode |
+| `Esc` | Close drawers / wake the HUD |
 
----
-
-## 🛠️ Build & Run
-
-### Quick Start (Linux):
-```bash
-./rigo
-```
-
-### Cross-Compilation for All Platforms:
-```bash
-# Build for current machine
-make build
-
-# Cross-compile for Linux (x64/arm64), macOS (Intel/Apple Silicon), and Windows (x64)
-make cross-compile
-```
-Pre-built binaries will be placed in `dist/`:
-- `rigo-linux-amd64`
-- `rigo-linux-arm64`
-- `rigo-macos-amd64`
-- `rigo-macos-arm64`
-- `rigo-windows-amd64.exe`
-
-### AppImage packaging (Linux):
-`make appimage` requires `appimagetool` on `PATH` (or an explicit `APPIMAGETOOL=/path/to/appimagetool`).
-It always builds a fresh Linux amd64 ELF, stages the desktop file, icon and `AppRun` in a private
-temporary directory under `dist/`, and publishes `dist/Rigo-x86_64.AppImage` only after success:
+## 🛠️ Build & run
 
 ```bash
-make appimage
+# Build for the current machine
+make build && ./rigo        # or simply: go build .
 
-# Optional overrides
-make appimage APPIMAGETOOL=/path/to/appimagetool DIST_DIR=release
+# Cross-compile for Linux (amd64/arm64), macOS (amd64/arm64) and Windows (amd64)
+make cross-compile          # binaries land in dist/
+
+# Native packages (Linux)
+make linux-packages         # deb + rpm + AppImage in dist/
+
+# Windows installer and macOS app
+make windows-installer      # needs NSIS and icotool
+make macos-packages         # needs png2icns and python3
 ```
 
-`make install-appdir` builds a fresh Linux amd64 binary at
-`Rigo.AppDir/usr/bin/rigo` for local desktop testing; that ignored file is not used by the AppImage target.
-Failed builds remove their staging directory and partial AppImage, leaving any previous artifact intact.
+Tool requirements for packaging: `dpkg-deb`, `rpmbuild`, `appimagetool` (not packaged in Debian:
+download the official AppImage and run it with `APPIMAGE_EXTRACT_AND_RUN=1`), `makensis`,
+`icotool`, `png2icns`. Every package embeds `packaging/copyright`, the full third-party notice.
+The build is smoke-tested by `tests/packaging-smoke.sh` and `tests/desktop-packaging-smoke.sh`.
 
-### Native Linux packages (x86_64)
+A **native Rust prototype** of the editor (egui, no browser) lives on the
+[`rust-native` branch](https://github.com/massigent/rigo/tree/rust-native).
 
-`make deb` uses `dpkg-deb`, and `make rpm` uses `rpmbuild`. `make linux-packages` builds both native packages and the AppImage in `dist/`. The targets do not install system dependencies.
+## 📜 Release history
 
-```bash
-# Ubuntu
-sudo apt install ./dist/rigo_1.1.0-1_amd64.deb
+| Version | Focus |
+| :--- | :--- |
+| [1.1.0](docs/releases/v1.1.0.md) | **The Rigo rename**: MIT release, IBM Plex fonts (SIL OFL), original generated logo, neutral theme names — preferences migrated automatically. |
+| [1.0.6](docs/releases/v1.0.6.md) | Performance: startup and per-keystroke hot paths on large documents. |
+| [1.0.5](docs/releases/v1.0.5.md) | Double-click word selection with typewriter scrolling on. |
+| [1.0.4](docs/releases/v1.0.4.md) | Security hardening: no token on the browser command line, bounded request bodies, CI. |
+| [1.0.3](docs/releases/v1.0.3.md) | Correctness: code blocks, untitled buffers, content-fingerprint revisions, read-only protection, review in [`REVIEW-1.0.3.md`](REVIEW-1.0.3.md). |
+| [1.0.2](REVIEW-1.0.2.md) | First public review pass: sanitised preview, single-instance forwarding, task-list precision. |
 
-# Fedora
-sudo dnf install ./dist/rigo-1.1.0-1.x86_64.rpm
+## 🗺️ Roadmap
 
-# AppImage (no installation required)
-chmod +x dist/Rigo-x86_64.AppImage
-./dist/Rigo-x86_64.AppImage
-```
-
-On a system without FUSE, launch the AppImage with `APPIMAGE_EXTRACT_AND_RUN=1`. After installing the DEB or RPM, open **Rigo** from the applications menu or run `rigo`.
-
-### Windows and macOS packages
-
-Download the Windows x64 setup from [Releases](https://github.com/massigent/rigo/releases/tag/v1.1.0) and run it from your Windows account. On macOS, download the ZIP for Apple Silicon (`arm64`) or Intel (`amd64`), extract it, and move `Rigo.app` to Applications. These builds are not signed with a distribution certificate or notarized.
-
-To cross-build on Linux, run `make windows-installer` (requires NSIS and `icotool`) or `make macos-packages` (requires Python 3 and `png2icns`). Run `sh tests/desktop-packaging-smoke.sh` after both builds to inspect the outputs with 7-Zip and Python.
-
----
+- Bundle KaTeX for real math typesetting (and Mermaid for diagrams).
+- Find & replace (with regex) and a word-count target.
+- A dictionary-based cliché/filler pass for prose.
+- Table editing affordances, image drag & drop, folder sidebar with pinning and `#tag` filters.
+- Export to PDF/DOCX via Pandoc.
 
 ## 📄 License
 
 Rigo is released under the [MIT license](LICENSE). Bundled third-party components (fonts, the
-Markdown parser, the Go standard library) keep their own licenses and are listed with their full
-texts in [THIRD-PARTY.md](THIRD-PARTY.md); the same notice ships inside every package.
+Markdown parser, the Go standard library) keep their own licenses, listed with their full texts
+in [THIRD-PARTY.md](THIRD-PARTY.md); the same notice ships inside every package.
 
 Rigo is not affiliated with any other editor. Product names of other editors appear only in the
 historical review documents (`REVIEW-*.md`).
 
 Created with craftsmanship for writers and programmers.
-
----
-
-## 🔧 What changed in 1.0.2
-
-A review pass against real builds of established editors fixed the following:
-
-**Correctness / data safety**
-- **Single-instance forwarding now works**: opening a second file from the file manager used to make the new process exit while the running window never learned about it (the path was written as raw text to the HTTP port). The primary now receives it over an authenticated control channel and the UI opens it via Server-Sent Events.
-- **Closing the window no longer "bricks" the launcher**: the server used to stay alive with no UI, so every later launch (double-click on the AppImage, desktop icon) answered "already running" and showed nothing. A launch with no attached window now re-opens the UI.
-- **Markdown is sanitized before rendering**: `marked` passed raw HTML through, so a document opened from anywhere could run script in the app origin — which holds the file API token. A strict allow-list (tags, attributes, URL schemes, no `on*`, no `style`) now runs on every render, plus a CSP, `Referrer-Policy: no-referrer` and `X-Frame-Options: DENY`.
-- **Print from Focus mode no longer prints a blank page** (`.pane.hidden` used to win over the print rule) and the print layout is no longer clipped to one screen.
-- **HTML export** no longer contains the per-block "Copy" buttons and no longer exports a stale/empty preview.
-- **Auto-save no longer pops the "Save as" dialog** on the welcome document; an untitled buffer stays untitled until you ask for a path, and a disk conflict during auto-save no longer opens a blocking modal.
-- **Unsaved changes are protected** by a `beforeunload` guard.
-
-**Feature fixes**
-- **Task list checkboxes toggle the exact marker**: each Markdown task checkbox is mapped through Marked's own token tree to the precise marker in the buffer (bulleted, numbered, nested, quoted and duplicate tasks, including `[X]`). Prose `[x]`, HTML authors, inline/fenced/indented code and stale previews cannot shift or authorise an edit; ignored clicks do not dirty the document, and read-only tasks are disabled.
-- **Checkmark visibility** (a `::after` on an `<input>` never renders) and **Focus dimming text no longer drifts** away from the caret (the highlighted line had a heavier weight, which changed glyph widths).
-- **Links open in the external browser** instead of navigating the editor away, and links to other local `.md` files open inside Rigo.
-- **Local images** now resolve relative to the document (`/api/asset`), with a broken-image placeholder.
-- **Math** is stashed before Markdown parsing, so `$x_1 * y_2$` is no longer mangled into emphasis; block math no longer leaves stray empty paragraphs.
-- **Theme/font/typewriter/focus/sound state is restored** in the HUD on launch.
-- **Windows paths**: document titles, recents and save-as paths no longer break on `\`.
-- **Bold/italic/link shortcuts preserve the undo stack** (`execCommand` instead of overwriting `.value`).
-- **Empty documents open as empty** instead of being replaced by the welcome text.
-- `.mkd/.mdwn/.mdx` are now listed in the file tree (they were accepted by the API but hidden).
-
-**Engineering**
-- Server gains `ReadHeaderTimeout`/`IdleTimeout`, security headers and `/api/events`, `/api/asset`, `/api/internal/open`.
-- 6 new regression tests (`go test -race`).
-
----
-
-## 🔧 What changed in 1.1.0 — Rigo
-
-**The editor is now called Rigo** and the public release is MIT-licensed, with the third-party audit
-that a public release requires. Full detail in [docs/releases/v1.1.0.md](docs/releases/v1.1.0.md).
-
-- **Fonts replaceable and redistributable**: the bundled typefaces are now **IBM Plex Mono / Sans /
-  Serif** (SIL OFL 1.1). The previous fonts came from a text-editor vendor whose terms forbid
-  bundling them in another editor, so they were removed — no visual regression: IBM Plex is the same
-  type family lineage, and the bundled font payload drops from 425 KB to 183 KB.
-- **Licensing**: `LICENSE` (MIT) and `THIRD-PARTY.md` (OFL texts, marked, Markdown, Go standard
-  library) are now in the repository and inside every package (`packaging/copyright`).
-- **New logo**: an original, generated icon (`tools/icon`) — three text lines with the middle one
-  centred and accented, the product's own idea. Multi-resolution `.ico` and `.icns` are built from it.
-- **Themes renamed** to neutral names: *Carta*, *Sepia*, *Notte*, *OLED*. Stored preferences,
-  recents (`~/.typecraft` → `~/.rigo`) and the instance lock are migrated automatically on first start.
-- **API headers** are `X-Rigo-Token` / `X-Rigo-Control`; the single-instance lock, the browser profile
-  and the port file now live in `~/.rigo`.
-
----
-
-## 🔧 What changed in 1.0.6
-
-Performance pass over startup and the per-keystroke hot paths. Full detail in `docs/releases/v1.0.6.md`.
-
-- **Startup**: the fixed 200ms pre-launch delay is gone (the server is bound before the browser is even
-  started), and the `xdg-settings` exec is skipped entirely when no Chromium-family browser exists —
-  the plain Fedora + Firefox case pays one process launch less on every start.
-- **Typing on large documents**: the typewriter caret mirror now measures only the current line
-  (O(line) instead of laying out the whole prefix on every keystroke), the focus-dim backdrop keeps
-  three persistent spans and updates only the current sentence/paragraph (no HTML re-parse of the
-  document per keystroke), the word/sentence statistics are debounced (they walked the whole file
-  with several regexes on every key), and the cursor position is computed without allocating a copy
-  of the prefix. The outline and preview debounces slow down to 400ms above 150KB, so bursts of
-  typing never pay a full parse per keystroke.
-
----
-
-## 🔧 What changed in 1.0.5
-
-A usability defect fix reported against 1.0.4. Full detail in `docs/releases/v1.0.5.md`.
-
-- **Double click selects the word again**: with typewriter scrolling enabled, every single click recentered
-  the view, so the text moved under the cursor between the two clicks of a word selection and the second
-  click landed a line above the intended word. The click recentering is now deferred by the double-click
-  window and cancelled by any new mousedown; a click with `detail > 1` (second/third click of a selection)
-  never recenters. Keyboard-driven recentering is unchanged.
-
----
-
-## 🔧 What changed in 1.0.4
-
-A second hardening review on top of 1.0.3. Full detail in `docs/releases/v1.0.4.md`.
-
-**Security**
-- **No token on the browser command line**: the app window used to open at a URL carrying the session
-  token, readable by other local users through `/proc/<pid>/cmdline`. The page now receives the token
-  from the `/api/init` handshake (including the startup-error response), and every fetch authenticates
-  with the `X-Rigo-Token` header; the query string form remains only for `EventSource` and
-  `<img>`, which cannot set headers.
-- **Bounded request bodies**: `/api/save`, `/api/rename` and `/api/mkdir` cap their JSON payloads at
-  32 MiB (`413` beyond), so a runaway client cannot buffer an unbounded document in memory.
-- **Fail-hard secrets**: if `crypto/rand` is unavailable the app refuses to start instead of falling
-  back to a timestamp-derived (predictable) token.
-- **Constant-time control secret**: the single-instance channel compares its secret like the UI
-  token.
-
-**Correctness and UX**
-- **"Save as" prefers `~/Documents` on every locale**, not only on Italian homes.
-- **`recents.json` is written atomically**, like a document save, so a crash cannot truncate it.
-- **`/api/init` reports the real OS** (the field existed but was never set).
-- **Windows file browser**: breadcrumbs and the workspace label split on both path separators, and a
-  drive (`C:`) is a clickable root crumb.
-- **External reloads keep the caret and viewport in place** instead of jumping to the end of the file.
-- **Dead code removed**: the unused `/api/export/html` endpoint, an unreachable modal and an unused
-  formatting case.
-
-**Process**
-- **CI on every push and pull request**: `gofmt` check, `go vet`, Go unit tests, the 146 jsdom
-  frontend tests and a build now run before a release is cut (`release.yml` only fired on tags).
-
----
-
-## 🔧 What changed in 1.0.3
-
-A review pass backed by executable evidence (the real engine driven in jsdom, plus the compiled
-binary probed over HTTP). Full detail in `REVIEW-1.0.3.md`.
-
-**Visible bugs**
-- **Code blocks are code blocks again**: Live Preview used to detach code from the Markdown and put it
-  back as *source*, so the preview showed literal ``` backticks inside a `<p>` — no `<pre>`, no
-  highlighting, no working "Copy" button. The fence is now rendered to HTML when it is detached
-  (`<pre class="code-block"><code class="language-xx">`, escaped, unclosed fences tolerated), and
-  inline code gets its own `<code>`.
-- **An untitled document no longer writes a file behind your back**: the first keystroke on the welcome
-  text created `~/Documents/Untitled.md` (and later sessions overwrote it). Auto-save no longer invents
-  a path; the status stays `○ Unsaved` and `Ctrl+S` asks for a name.
-- **`Ctrl+Alt+T` (sound) works on macOS**: with Option held `e.key` is `†`, so the shortcut never fired;
-  it now uses `e.code`.
-
-**Security**
-- **`/api/asset` is confined to the document folder**: it served any image on disk (including `.svg`)
-  while claiming otherwise; now `pathWithin()` resolves symlinks before comparing.
-- **`/api/rename` can no longer delete arbitrary files**: `old_path` must be a Markdown document.
-- **DNS-rebinding guard fixed**: `http://127.0.0.1.evil.com` and `http://localhost.evil.com` passed the
-  prefix test; the host is now compared exactly.
-- **Host/Origin boundary completed**: every request — landing page, `/static/*`, the `/api/init`
-  handshake, tokenised APIs, `/api/events`, `/api/internal/open` and unknown paths — now needs the
-  actual listener authority (`127.0.0.1:<port>` or `localhost:<port>`, hostname case-insensitive). A
-  valid token does not authorise a foreign Host, so a rebinding name that resolves to 127.0.0.1 gets a
-  `403` before any content or token is served. An `Origin` header, when present, must be same-origin
-  (same scheme, host and port; no userinfo, path, query, fragment or multiple values); without it the
-  request is allowed only after a valid Host and still needs the API token (or the internal control
-  secret). `Forwarded`/`X-Forwarded-*` grant no trust, and rejections keep the security headers. This
-  is a local loopback boundary, not isolation from other processes running as the same user.
-- **Token compared in constant time** (`subtle.ConstantTimeCompare`).
-
-**Data**
-- **Saving preserves file permissions** (every save used to turn a `0644`/`0640` into `0600`) and syncs
-  the directory entry too.
-- **"Save as" no longer overwrites silently**: the backend answers `409` and only replaces with
-  `overwrite: true`, which the UI sends after an explicit confirmation.
-- **The extension you type is no longer rewritten** (a bug other editors shipped for years): unsupported
-  extensions get a `400` listing what is allowed, with one explicit question when the name really looks
-  like a file type.
-- **External change watchdog** (`/api/stat`, every 5 s): a clean buffer reloads
-  (`● Reloaded from disk`), a dirty one shows `⚠️ Changed on disk` and not a single typed line is
-  touched.
-- **Saves and conflicts use opaque content revisions** (`sha256:<hex>` of the file bytes) instead of
-  timestamps: an external edit is detected even when `mtime` and size are identical, a save with a stale
-  baseline gets a structured `409` (never a silent overwrite), a file deleted on disk is not recreated,
-  and a rename verifies the source revision before touching anything. `mod_time` stays metadata;
-  oversized integer timestamps are no longer the baseline. `/api/stat` now hashes the file on every
-  poll (one read per window every 5 s), which is the price for detecting same-metadata changes.
-  Legacy API clients that sent only `mod_time` must read a revision and send `expected_revision`
-  (`428 revision_required` otherwise).
-- **Read-only documents are protected by the backend, not only by the UI**: a file with no write bits
-  (or without effective write access for the process) is reported as `read_only` and cannot be saved,
-  renamed or replaced by the atomic write, even with an explicit content-conflict override; a protected
-  destination is refused too. The editor is locked (including toolbar, tables and preview task boxes),
-  autosave is suspended, and an explicit **Save a copy** writes a new document with `old_path` empty so
-  the original is never modified or deleted. POSIX mode bits are the app policy; Windows/POSIX ACLs
-  beyond the process view are only advisory and surface as a `write_forbidden` error at write time
-  (a read-only filesystem, `EROFS`, is a write refusal too). A rename needs removal rights on the
-  source directory, not only write access to the file: when the destination was written but the
-  source could not be removed, the answer is an explicit **incomplete/partial** error (source kept,
-  no automatic rollback, no active-document switch), never a fake success. At launch, an unreadable
-  active file is reported instead of being shown as a clean empty document, and a protocol-invalid
-  server answer keeps the buffer dirty with an explicit warning (no path/baseline adoption, no blind
-  retry).
-- **Save As keeps the original**: «Salva con nome» (`Ctrl/Cmd+Shift+S` or the menu) writes the current
-  buffer to a new path and leaves the source untouched; only «Rinomina / Sposta» (click on the title)
-  moves the file, and only on full success. Save As sends an explicit `source_path` and the backend
-  refuses a destination that is the source itself (same path, symlink alias, same file/hard link), so a
-  copy can never clobber the original (symlink chains, dangling links, symlinked folders and hard links
-  are refused or fail explicitly; the dialog suggests a `*-copia.md` name). A destination that is a
-  symlink entry the source path traverses (for example a directory link needed to reach the original)
-  is refused as `copy_same_source` even when the final referents differ or `overwrite` is set.
-  Relative link targets are resolved from the link's physical directory, including symlinked folders and
-  the existing prefix of a missing path; a distinct destination entry whose referent is missing still
-  requires explicit overwrite consent. Cancelling or a denied destination leaves the source and the
-  dirty buffer intact, and edits typed while an unconfirmed copy was pending are kept in the buffer
-  instead of being auto-saved onto the source.
-
-**Engineering**
-- Current regression suite: 79 top-level Go tests (`go test -race -shuffle=on ./...`) and 118
-  frontend tests after `npm ci`; `go vet`, JS/CJS/MJS syntax checks and `git diff --check` are clean.
-- Copy-identity verification is a preflight serialized with this process's writes, **not** a filesystem
-  CAS: an external process can still mutate the paths between verification and the atomic write.
-  Symlink chains are bounded (40 hops) and hard links are conservatively refused as aliases.
-
----
-
-## 🗺️ Roadmap
-
-- Bundle KaTeX for real math typesetting (and Mermaid for diagrams).
-- Find & replace in document (with regex), and a word-count target.
-- Syntax Control / Style Check (parts of speech via NLP is not portable in Go; a dictionary-based cliché/filler pass is feasible).
-- Table editing affordances (add/remove row/column), image drag & drop.
-- Library/folder sidebar with pinning and smart filters (`#tag`), export to PDF/DOCX via Pandoc.
